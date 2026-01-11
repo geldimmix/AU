@@ -1,0 +1,61 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+
+    - name: Restore dependencies
+      run: dotnet restore AlgoritmaUzmani/AlgoritmaUzmani.csproj
+
+    - name: Build
+      run: dotnet build AlgoritmaUzmani/AlgoritmaUzmani.csproj --configuration Release --no-restore
+
+    - name: Publish
+      run: dotnet publish AlgoritmaUzmani/AlgoritmaUzmani.csproj --configuration Release --no-build --output ./publish
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to server
+      run: |
+        rsync -avz --delete \
+          --exclude 'AppData/' \
+          --exclude 'appsettings.Development.json' \
+          -e "ssh -i ~/.ssh/deploy_key" \
+          ./publish/ \
+          deploy@${{ secrets.SERVER_IP }}:/var/www/algoritmauzmani/
+        
+    - name: Ensure AppData directory exists
+      run: |
+        ssh -i ~/.ssh/deploy_key deploy@${{ secrets.SERVER_IP }} "mkdir -p /var/www/algoritmauzmani/AppData && chmod 775 /var/www/algoritmauzmani/AppData"
+
+    - name: Restart application
+      run: |
+        ssh -i ~/.ssh/deploy_key deploy@${{ secrets.SERVER_IP }} "sudo systemctl restart algoritmauzmani"
+
+    - name: Health check
+      run: |
+        sleep 5
+        ssh -i ~/.ssh/deploy_key deploy@${{ secrets.SERVER_IP }} "sudo systemctl status algoritmauzmani --no-pager"
+

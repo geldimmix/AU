@@ -1,0 +1,55 @@
+@model List<AlgoritmaUzmani.Models.Entities.StaticPage>
+@{
+    ViewData["Title"] = "Statik Sayfalar";
+    Layout = "_AdminLayout";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Statik Sayfalar</h2>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Slug</th>
+                    <th>Başlık (TR)</th>
+                    <th>Başlık (EN)</th>
+                    <th>Durum</th>
+                    <th>Güncelleme</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in Model)
+                {
+                    <tr>
+                        <td><code>@p.Slug</code></td>
+                        <td>@p.TitleTr</td>
+                        <td>@p.TitleEn</td>
+                        <td>
+                            @if (p.IsActive)
+                            {
+                                <span class="badge badge-success">Aktif</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-secondary">Pasif</span>
+                            }
+                        </td>
+                        <td>@(p.UpdatedAt?.ToString("dd.MM.yyyy HH:mm") ?? p.CreatedAt.ToString("dd.MM.yyyy HH:mm"))</td>
+                        <td style="text-align: right;">
+                            <a href="/admin/pages/edit/@p.Id" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-edit"></i> Düzenle
+                            </a>
+                            <a href="/sayfa/@p.Slug" target="_blank" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+

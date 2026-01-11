@@ -1,0 +1,157 @@
+@model List<AlgoritmaUzmani.Models.Entities.VisitorLog>
+@{
+    ViewData["Title"] = "Ziyaretçi Listesi";
+    Layout = "_AdminLayout";
+    
+    var currentPage = (int)ViewBag.CurrentPage;
+    var totalPages = (int)ViewBag.TotalPages;
+    var totalCount = (int)ViewBag.TotalCount;
+    var startDate = (string)ViewBag.StartDate;
+    var endDate = (string)ViewBag.EndDate;
+}
+
+<div class="card mb-3">
+    <div class="card-header">
+        <h2 class="card-title">Tarih Filtresi</h2>
+    </div>
+    <div class="card-body">
+        <form method="get" style="display: flex; gap: 1rem; align-items: flex-end; flex-wrap: wrap;">
+            <div class="form-group mb-0">
+                <label class="form-label">Başlangıç Tarihi</label>
+                <input type="date" name="startDate" class="form-control" value="@startDate" />
+            </div>
+            <div class="form-group mb-0">
+                <label class="form-label">Bitiş Tarihi</label>
+                <input type="date" name="endDate" class="form-control" value="@endDate" />
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i> Filtrele
+            </button>
+            <a href="/admin/analytics/visitors" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Temizle
+            </a>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Ziyaretçiler (@totalCount.ToString("N0") kayıt)</h2>
+        <a href="/admin/analytics" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Analize Dön
+        </a>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>IP Adresi</th>
+                        <th>Tarayıcı</th>
+                        <th>Cihaz</th>
+                        <th>İşletim Sistemi</th>
+                        <th>Sayfa</th>
+                        <th>Referrer</th>
+                        <th>Yeni</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var visitor in Model)
+                    {
+                        <tr>
+                            <td>
+                                <span style="font-size: 0.8rem; white-space: nowrap;">@visitor.VisitedAt.ToString("dd.MM.yyyy HH:mm:ss")</span>
+                            </td>
+                            <td>
+                                <code style="background: #f1f5f9; padding: 0.125rem 0.375rem; border-radius: 4px; font-size: 0.8rem;">@visitor.IpAddress</code>
+                            </td>
+                            <td>
+                                @visitor.Browser
+                                @if (!string.IsNullOrEmpty(visitor.BrowserVersion))
+                                {
+                                    <span class="text-muted" style="font-size: 0.75rem;">v@visitor.BrowserVersion</span>
+                                }
+                            </td>
+                            <td>
+                                @{
+                                    var deviceIcon = visitor.DeviceType switch {
+                                        "Desktop" => "fa-desktop",
+                                        "Mobile" => "fa-mobile-alt",
+                                        "Tablet" => "fa-tablet-alt",
+                                        _ => "fa-question"
+                                    };
+                                }
+                                <i class="fas @deviceIcon text-muted"></i>
+                                @visitor.DeviceType
+                            </td>
+                            <td>@visitor.OperatingSystem</td>
+                            <td>
+                                @{
+                                    var pageUrl = visitor.PageUrl ?? "/";
+                                    var shortUrl = pageUrl.Length > 30 ? pageUrl.Substring(0, 27) + "..." : pageUrl;
+                                }
+                                <a href="@pageUrl" target="_blank" title="@pageUrl" style="color: var(--primary); font-size: 0.85rem;">@shortUrl</a>
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(visitor.Referrer))
+                                {
+                                    var shortRef = visitor.Referrer.Length > 25 ? visitor.Referrer.Substring(0, 22) + "..." : visitor.Referrer;
+                                    <span title="@visitor.Referrer" style="font-size: 0.8rem; color: var(--text-secondary);">@shortRef</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                @if (visitor.IsNewVisitor)
+                                {
+                                    <span class="badge badge-success">Evet</span>
+                                }
+                                else
+                                {
+                                    <span class="badge badge-info">Hayır</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    @if (totalPages > 1)
+    {
+        <div class="card-body" style="border-top: 1px solid var(--border);">
+            <div style="display: flex; justify-content: center; gap: 0.5rem; flex-wrap: wrap;">
+                @if (currentPage > 1)
+                {
+                    <a href="/admin/analytics/visitors?page=@(currentPage - 1)&startDate=@startDate&endDate=@endDate" class="btn btn-secondary btn-sm">
+                        <i class="fas fa-chevron-left"></i> Önceki
+                    </a>
+                }
+                
+                @for (var i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++)
+                {
+                    if (i == currentPage)
+                    {
+                        <span class="btn btn-primary btn-sm">@i</span>
+                    }
+                    else
+                    {
+                        <a href="/admin/analytics/visitors?page=@i&startDate=@startDate&endDate=@endDate" class="btn btn-secondary btn-sm">@i</a>
+                    }
+                }
+                
+                @if (currentPage < totalPages)
+                {
+                    <a href="/admin/analytics/visitors?page=@(currentPage + 1)&startDate=@startDate&endDate=@endDate" class="btn btn-secondary btn-sm">
+                        Sonraki <i class="fas fa-chevron-right"></i>
+                    </a>
+                }
+            </div>
+        </div>
+    }
+</div>
+

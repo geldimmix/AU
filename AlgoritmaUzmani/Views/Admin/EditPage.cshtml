@@ -1,0 +1,176 @@
+@model AlgoritmaUzmani.Models.Entities.StaticPage
+@{
+    ViewData["Title"] = "Sayfa Düzenle - " + Model.TitleTr;
+    Layout = "_AdminLayout";
+}
+
+<form asp-action="EditPage" asp-route-id="@Model.Id" method="post" id="pageForm">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="Slug" />
+    <input type="hidden" asp-for="CreatedAt" />
+
+    <div class="card mb-3">
+        <div class="card-header">
+            <h2 class="card-title">@Model.TitleTr</h2>
+            <span class="badge badge-secondary">/@Model.Slug</span>
+        </div>
+        <div class="card-body">
+            <!-- Tabs -->
+            <div class="tabs">
+                <div class="tab active" data-tab="tr">🇹🇷 Türkçe</div>
+                <div class="tab" data-tab="en">🇬🇧 İngilizce</div>
+            </div>
+
+            <!-- Turkish Content -->
+            <div class="tab-content active" id="tab-tr">
+                <div class="form-group">
+                    <label asp-for="TitleTr" class="form-label">Başlık (TR)</label>
+                    <input asp-for="TitleTr" class="form-control" />
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="MetaDescriptionTr" class="form-label">Meta Açıklama (TR)</label>
+                    <textarea asp-for="MetaDescriptionTr" class="form-control" rows="2" maxlength="160"></textarea>
+                    <div class="form-hint">Kalan: <span id="metaTrCount">@(160 - (Model.MetaDescriptionTr?.Length ?? 0))</span> karakter</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">İçerik (TR)</label>
+                    <div class="editor-toolbar">
+                        <button type="button" class="editor-btn" onclick="execCmd('bold')" title="Kalın"><i class="fas fa-bold"></i></button>
+                        <button type="button" class="editor-btn" onclick="execCmd('italic')" title="İtalik"><i class="fas fa-italic"></i></button>
+                        <button type="button" class="editor-btn" onclick="execCmd('underline')" title="Altı Çizili"><i class="fas fa-underline"></i></button>
+                        <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
+                        <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h2')" title="Başlık 2">H2</button>
+                        <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h3')" title="Başlık 3">H3</button>
+                        <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'p')" title="Paragraf">P</button>
+                        <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
+                        <button type="button" class="editor-btn" onclick="execCmd('insertUnorderedList')" title="Liste"><i class="fas fa-list-ul"></i></button>
+                        <button type="button" class="editor-btn" onclick="execCmd('insertOrderedList')" title="Numaralı Liste"><i class="fas fa-list-ol"></i></button>
+                        <button type="button" class="editor-btn" onclick="insertLink()" title="Link"><i class="fas fa-link"></i></button>
+                    </div>
+                    <div class="editor-content" contenteditable="true" id="editorTr" style="min-height: 300px;"></div>
+                    <input type="hidden" asp-for="ContentTr" id="ContentTr" />
+                </div>
+            </div>
+
+            <!-- English Content -->
+            <div class="tab-content" id="tab-en">
+                <div class="form-group">
+                    <label asp-for="TitleEn" class="form-label">Başlık (EN)</label>
+                    <input asp-for="TitleEn" class="form-control" />
+                </div>
+
+                <div class="form-group">
+                    <label asp-for="MetaDescriptionEn" class="form-label">Meta Açıklama (EN)</label>
+                    <textarea asp-for="MetaDescriptionEn" class="form-control" rows="2" maxlength="160"></textarea>
+                    <div class="form-hint">Remaining: <span id="metaEnCount">@(160 - (Model.MetaDescriptionEn?.Length ?? 0))</span> characters</div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">İçerik (EN)</label>
+                    <div class="editor-toolbar">
+                        <button type="button" class="editor-btn" onclick="execCmdEn('bold')" title="Bold"><i class="fas fa-bold"></i></button>
+                        <button type="button" class="editor-btn" onclick="execCmdEn('italic')" title="Italic"><i class="fas fa-italic"></i></button>
+                        <button type="button" class="editor-btn" onclick="execCmdEn('underline')" title="Underline"><i class="fas fa-underline"></i></button>
+                        <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
+                        <button type="button" class="editor-btn" onclick="execCmdEn('formatBlock', 'h2')" title="Heading 2">H2</button>
+                        <button type="button" class="editor-btn" onclick="execCmdEn('formatBlock', 'h3')" title="Heading 3">H3</button>
+                        <button type="button" class="editor-btn" onclick="execCmdEn('formatBlock', 'p')" title="Paragraph">P</button>
+                        <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
+                        <button type="button" class="editor-btn" onclick="execCmdEn('insertUnorderedList')" title="List"><i class="fas fa-list-ul"></i></button>
+                        <button type="button" class="editor-btn" onclick="execCmdEn('insertOrderedList')" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+                        <button type="button" class="editor-btn" onclick="insertLinkEn()" title="Link"><i class="fas fa-link"></i></button>
+                    </div>
+                    <div class="editor-content" contenteditable="true" id="editorEn" style="min-height: 300px;"></div>
+                    <input type="hidden" asp-for="ContentEn" id="ContentEn" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="form-group">
+                <div class="form-check">
+                    <input asp-for="IsActive" type="checkbox" />
+                    <label asp-for="IsActive">Aktif</label>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Kaydet
+                </button>
+                <a href="/admin/pages" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Geri
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+<script>
+    // Tabs
+    document.querySelectorAll('.tab[data-tab]').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-tab');
+            document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+        });
+    });
+
+    // Editor Commands
+    function execCmd(command, value = null) {
+        document.getElementById('editorTr').focus();
+        document.execCommand(command, false, value);
+    }
+
+    function execCmdEn(command, value = null) {
+        document.getElementById('editorEn').focus();
+        document.execCommand(command, false, value);
+    }
+
+    function insertLink() {
+        const url = prompt('Link URL:', 'https://');
+        if (url) {
+            execCmd('createLink', url);
+        }
+    }
+
+    function insertLinkEn() {
+        const url = prompt('Link URL:', 'https://');
+        if (url) {
+            document.getElementById('editorEn').focus();
+            document.execCommand('createLink', false, url);
+        }
+    }
+
+    // Meta description counter
+    document.getElementById('MetaDescriptionTr').addEventListener('input', function() {
+        document.getElementById('metaTrCount').textContent = 160 - this.value.length;
+    });
+    document.getElementById('MetaDescriptionEn').addEventListener('input', function() {
+        document.getElementById('metaEnCount').textContent = 160 - this.value.length;
+    });
+
+    // Form submit - copy editor content
+    document.getElementById('pageForm').addEventListener('submit', function(e) {
+        document.getElementById('ContentTr').value = document.getElementById('editorTr').innerHTML;
+        document.getElementById('ContentEn').value = document.getElementById('editorEn').innerHTML;
+    });
+
+    // Load existing content
+    window.addEventListener('load', function() {
+        const contentTr = document.getElementById('ContentTr').value;
+        const contentEn = document.getElementById('ContentEn').value;
+        if (contentTr) document.getElementById('editorTr').innerHTML = contentTr;
+        if (contentEn) document.getElementById('editorEn').innerHTML = contentEn;
+    });
+</script>
+}
+

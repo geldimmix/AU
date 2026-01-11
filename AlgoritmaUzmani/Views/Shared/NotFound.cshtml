@@ -1,0 +1,192 @@
+@{
+    Layout = null;
+    var isEnglish = Context.Request.Path.ToString().StartsWith("/en");
+}
+<!DOCTYPE html>
+<html lang="@(isEnglish ? "en" : "tr")">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(isEnglish ? "Page Not Found" : "Sayfa Bulunamadı") - @(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 500px;
+        }
+
+        .error-code {
+            font-size: 8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #0066ff 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            margin-bottom: 1rem;
+        }
+
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @@keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .error-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 0.75rem;
+        }
+
+        .error-message {
+            font-size: 1.05rem;
+            color: #64748b;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.875rem 1.5rem;
+            font-size: 0.95rem;
+            font-weight: 600;
+            border-radius: 0.75rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0066ff 0%, #0052cc 100%);
+            color: white;
+            box-shadow: 0 4px 14px rgba(0, 102, 255, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 102, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+        }
+
+        .suggestions {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .suggestions-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+
+        .suggestions-list {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .suggestion-link {
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            color: #0066ff;
+            background: #e6f0ff;
+            border-radius: 9999px;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .suggestion-link:hover {
+            background: #0066ff;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">🔍</div>
+        <div class="error-code">404</div>
+        <h1 class="error-title">
+            @(isEnglish ? "Page Not Found" : "Sayfa Bulunamadı")
+        </h1>
+        <p class="error-message">
+            @(isEnglish 
+                ? "The page you're looking for doesn't exist or has been moved. Let's get you back on track!" 
+                : "Aradığınız sayfa mevcut değil veya taşınmış olabilir. Sizi doğru yöne yönlendirelim!")
+        </p>
+        
+        <div class="actions">
+            <a href="@(isEnglish ? "/en" : "/")" class="btn btn-primary">
+                🏠 @(isEnglish ? "Go Home" : "Ana Sayfa")
+            </a>
+            <a href="@(isEnglish ? "/en/guides" : "/rehberler")" class="btn btn-secondary">
+                📚 @(isEnglish ? "Browse Guides" : "Rehberlere Göz At")
+            </a>
+        </div>
+
+        <div class="suggestions">
+            <div class="suggestions-title">
+                @(isEnglish ? "Popular Categories" : "Popüler Kategoriler")
+            </div>
+            <div class="suggestions-list">
+                <a href="@(isEnglish ? "/en/guides/data-structures" : "/rehberler/veri-yapilari")" class="suggestion-link">
+                    🗂️ @(isEnglish ? "Data Structures" : "Veri Yapıları")
+                </a>
+                <a href="@(isEnglish ? "/en/guides/algorithms" : "/rehberler/algoritmalar")" class="suggestion-link">
+                    ⚡ @(isEnglish ? "Algorithms" : "Algoritmalar")
+                </a>
+                <a href="@(isEnglish ? "/en/guides/api-and-web-development" : "/rehberler/api-ve-web-gelistirme")" class="suggestion-link">
+                    🌐 @(isEnglish ? "Web Dev" : "Web Geliştirme")
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

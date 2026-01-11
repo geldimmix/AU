@@ -1,0 +1,131 @@
+@{
+    ViewData["Title"] = "Site Ayarları";
+    Layout = "_AdminLayout";
+    
+    var headerScripts = (string)ViewBag.HeaderScripts;
+    var footerScripts = (string)ViewBag.FooterScripts;
+    var googleAnalytics = (string)ViewBag.GoogleAnalytics;
+    var googleTagManager = (string)ViewBag.GoogleTagManager;
+}
+
+<form method="post">
+    @Html.AntiForgeryToken()
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+        <!-- Google Services -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fab fa-google" style="color: #4285f4; margin-right: 0.5rem;"></i>Google Servisleri</h2>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label class="form-label">Google Analytics Measurement ID</label>
+                    <input type="text" name="googleAnalytics" class="form-control" value="@googleAnalytics" placeholder="G-XXXXXXXXXX" />
+                    <div class="form-hint">Google Analytics 4 ölçüm kimliğinizi girin (örn: G-ABC123XYZ)</div>
+                </div>
+                
+                <div class="form-group mb-0">
+                    <label class="form-label">Google Tag Manager Container ID</label>
+                    <input type="text" name="googleTagManager" class="form-control" value="@googleTagManager" placeholder="GTM-XXXXXXX" />
+                    <div class="form-hint">Google Tag Manager konteyner kimliğinizi girin (örn: GTM-ABC123)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Box -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title"><i class="fas fa-info-circle" style="color: #3b82f6; margin-right: 0.5rem;"></i>Bilgi</h2>
+            </div>
+            <div class="card-body">
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
+                    <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; color: #1e40af;">Google Analytics Nasıl Alınır?</h4>
+                    <ol style="font-size: 0.85rem; color: #1e40af; margin-left: 1rem; margin-bottom: 0;">
+                        <li>Google Analytics hesabınıza gidin</li>
+                        <li>Admin > Data Streams > Web seçin</li>
+                        <li>Measurement ID'yi (G-XXXX) kopyalayın</li>
+                    </ol>
+                </div>
+                
+                <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 0.5rem; padding: 1rem;">
+                    <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5rem; color: #92400e;">⚠️ Önemli</h4>
+                    <p style="font-size: 0.85rem; color: #92400e; margin: 0;">
+                        Script kodları doğrudan HTML olarak eklenir. Yalnızca güvendiğiniz kaynaklardan kod ekleyin.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Header Scripts -->
+    <div class="card mt-3">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-code" style="margin-right: 0.5rem;"></i>Header Scripts (&lt;head&gt; içine)</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-group mb-0">
+                <label class="form-label">Özel Header Kodları</label>
+                <textarea name="headerScripts" class="form-control" rows="8" placeholder="<!-- Google Analytics, Meta Pixel, vb. kodları buraya yapıştırın -->">@headerScripts</textarea>
+                <div class="form-hint">Bu kodlar sayfanın &lt;head&gt; bölümüne eklenecektir. Örnek: Google Analytics, Facebook Pixel, özel meta tagları.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Scripts -->
+    <div class="card mt-3">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-code" style="margin-right: 0.5rem;"></i>Footer Scripts (&lt;/body&gt; öncesi)</h2>
+        </div>
+        <div class="card-body">
+            <div class="form-group mb-0">
+                <label class="form-label">Özel Footer Kodları</label>
+                <textarea name="footerScripts" class="form-control" rows="8" placeholder="<!-- Chat widget, analytics, vb. kodları buraya yapıştırın -->">@footerScripts</textarea>
+                <div class="form-hint">Bu kodlar sayfanın &lt;/body&gt; tagından hemen önce eklenecektir. Örnek: Chat widget'ları, ek analiz scriptleri.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="card mt-3">
+        <div class="card-header">
+            <h2 class="card-title"><i class="fas fa-eye" style="margin-right: 0.5rem;"></i>Önizleme</h2>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-2">Aşağıdaki kodlar otomatik olarak sitenize eklenecektir:</p>
+            
+            @if (!string.IsNullOrEmpty(googleAnalytics))
+            {
+                <div style="background: #1e293b; border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem; overflow-x: auto;">
+                    <pre style="color: #e2e8f0; margin: 0; font-size: 0.8rem;"><code>&lt;!-- Google Analytics --&gt;
+&lt;script async src="https://www.googletagmanager.com/gtag/js?id=@googleAnalytics"&gt;&lt;/script&gt;
+&lt;script&gt;
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '@googleAnalytics');
+&lt;/script&gt;</code></pre>
+                </div>
+            }
+            
+            @if (!string.IsNullOrEmpty(googleTagManager))
+            {
+                <div style="background: #1e293b; border-radius: 0.5rem; padding: 1rem; overflow-x: auto;">
+                    <pre style="color: #e2e8f0; margin: 0; font-size: 0.8rem;"><code>&lt;!-- Google Tag Manager --&gt;
+&lt;script&gt;(function(w,d,s,l,i){...})(window,document,'script','dataLayer','@googleTagManager');&lt;/script&gt;</code></pre>
+                </div>
+            }
+
+            @if (string.IsNullOrEmpty(googleAnalytics) && string.IsNullOrEmpty(googleTagManager))
+            {
+                <p class="text-muted">Henüz bir Google servisi yapılandırılmamış.</p>
+            }
+        </div>
+    </div>
+
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Ayarları Kaydet
+        </button>
+    </div>
+</form>
+

@@ -1,0 +1,70 @@
+@model List<AlgoritmaUzmani.Models.Entities.Category>
+@{
+    ViewData["Title"] = "Kategoriler";
+    Layout = "_AdminLayout";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">Tüm Kategoriler</h2>
+        <a href="/admin/categories/create" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i>
+            Yeni Kategori
+        </a>
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>Sıra</th>
+                    <th>İkon</th>
+                    <th>İsim (TR)</th>
+                    <th>İsim (EN)</th>
+                    <th>Durum</th>
+                    <th>Rehber Sayısı</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var category in Model.OrderBy(c => c.DisplayOrder))
+                {
+                    <tr>
+                        <td>@category.DisplayOrder</td>
+                        <td style="font-size: 1.25rem;">@category.Icon</td>
+                        <td><strong>@category.NameTr</strong></td>
+                        <td class="text-muted">@(category.NameEn ?? "-")</td>
+                        <td>
+                            @if (category.IsActive)
+                            {
+                                <span class="badge badge-success">Aktif</span>
+                            }
+                            else
+                            {
+                                <span class="badge badge-danger">Pasif</span>
+                            }
+                        </td>
+                        <td>@category.Guides.Count</td>
+                        <td>
+                            <div class="table-actions">
+                                <a href="/admin/categories/edit/@category.Id" class="btn btn-secondary btn-sm" title="Düzenle">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                @if (category.Guides.Count == 0)
+                                {
+                                    <form asp-action="DeleteCategory" asp-route-id="@category.Id" method="post" style="display: inline;"
+                                          onsubmit="return confirm('Bu kategoriyi silmek istediğinize emin misiniz?');">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-danger btn-sm" title="Sil">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+

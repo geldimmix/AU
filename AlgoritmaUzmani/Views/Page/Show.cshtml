@@ -1,0 +1,45 @@
+@model AlgoritmaUzmani.Models.Entities.StaticPage
+@{
+    Layout = "_Layout";
+    var isEnglish = ViewBag.IsEnglish == true;
+    var title = isEnglish && !string.IsNullOrEmpty(Model.TitleEn) ? Model.TitleEn : Model.TitleTr;
+    var content = isEnglish && !string.IsNullOrEmpty(Model.ContentEn) ? Model.ContentEn : Model.ContentTr;
+    var categories = ViewBag.Categories as List<AlgoritmaUzmani.Models.Entities.Category> ?? new List<AlgoritmaUzmani.Models.Entities.Category>();
+}
+
+<div class="main-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <h2 class="sidebar-title">@(isEnglish ? "CATEGORIES" : "KATEGORİLER")</h2>
+        <ul class="category-list">
+            @foreach (var category in categories)
+            {
+                var catName = isEnglish && !string.IsNullOrEmpty(category.NameEn) ? category.NameEn : category.NameTr;
+                var catSlug = isEnglish && !string.IsNullOrEmpty(category.SlugEn) ? category.SlugEn : category.SlugTr;
+                <li class="category-item">
+                    <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@catSlug" class="category-link">
+                        <span class="category-icon">@category.Icon</span>
+                        @catName
+                    </a>
+                </li>
+            }
+        </ul>
+    </aside>
+
+    <!-- Content -->
+    <main class="content">
+        <nav class="breadcrumb">
+            <a href="@(isEnglish ? "/en" : "/")">@(isEnglish ? "Home" : "Ana Sayfa")</a>
+            <span class="breadcrumb-sep">›</span>
+            <span>@title</span>
+        </nav>
+
+        <article class="guide-content">
+            <h1>@title</h1>
+            <div style="margin-top: 2rem;">
+                @Html.Raw(content)
+            </div>
+        </article>
+    </main>
+</div>
+

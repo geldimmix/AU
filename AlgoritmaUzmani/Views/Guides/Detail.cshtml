@@ -1,0 +1,171 @@
+@model AlgoritmaUzmani.Models.ViewModels.Public.GuideDetailViewModel
+@{
+    Layout = "_Layout";
+    var isEnglish = Model.Language == "en";
+    var categoryName = isEnglish && !string.IsNullOrEmpty(Model.Category.NameEn) ? Model.Category.NameEn : Model.Category.NameTr;
+    var categorySlug = isEnglish && !string.IsNullOrEmpty(Model.Category.SlugEn) ? Model.Category.SlugEn : Model.Category.SlugTr;
+}
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        .guide-header {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .guide-header-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+        .guide-header-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+    </style>
+}
+
+<div class="main-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <h2 class="sidebar-title">@(isEnglish ? "CATEGORIES" : "KATEGORİLER")</h2>
+        <ul class="category-list">
+            @foreach (var category in Model.AllCategories)
+            {
+                var catName = isEnglish && !string.IsNullOrEmpty(category.NameEn) ? category.NameEn : category.NameTr;
+                var catSlug = isEnglish && !string.IsNullOrEmpty(category.SlugEn) ? category.SlugEn : category.SlugTr;
+                var isActive = category.Id == Model.Category.Id;
+                <li class="category-item">
+                    <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@catSlug" class="category-link @(isActive ? "active" : "")">
+                        <span class="category-icon">@category.Icon</span>
+                        @catName
+                    </a>
+                </li>
+            }
+        </ul>
+    </aside>
+
+    <!-- Content -->
+    <main class="content">
+        <nav class="breadcrumb">
+            <a href="@(isEnglish ? "/en" : "/")">@(isEnglish ? "Home" : "Ana Sayfa")</a>
+            <span class="breadcrumb-sep">›</span>
+            <a href="@(isEnglish ? "/en/guides" : "/rehberler")">@(isEnglish ? "Guides" : "Rehberler")</a>
+            <span class="breadcrumb-sep">›</span>
+            <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@categorySlug">@categoryName</a>
+            <span class="breadcrumb-sep">›</span>
+            <span>@Model.Title</span>
+        </nav>
+
+        <article class="guide-content">
+            <header class="guide-header">
+                <div class="guide-tags mb-2">
+                    @foreach (var tag in Model.Guide.GuideTags)
+                    {
+                        var tagName = isEnglish && !string.IsNullOrEmpty(tag.Tag.NameEn) ? tag.Tag.NameEn : tag.Tag.NameTr;
+                        <span class="tag" style="@(!string.IsNullOrEmpty(tag.Tag.Color) ? $"background:{tag.Tag.Color};color:#fff;" : "")">
+                            @tagName
+                        </span>
+                    }
+                </div>
+
+                <h1>@Model.Title</h1>
+
+                @if (!string.IsNullOrEmpty(Model.Guide.FeaturedImage))
+                {
+                    var altText = isEnglish && !string.IsNullOrEmpty(Model.Guide.FeaturedImageAltEn) 
+                        ? Model.Guide.FeaturedImageAltEn 
+                        : Model.Guide.FeaturedImageAltTr;
+                    <img src="/appdata/@Model.Guide.FeaturedImage" alt="@altText" style="width: 100%; border-radius: 0.75rem; margin: 1.5rem 0;" />
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Summary))
+                {
+                    <p class="page-description">@Model.Summary</p>
+                }
+
+                <div class="guide-header-meta">
+                    <span>@Model.Category.Icon @categoryName</span>
+                    <span>📅 @Model.Guide.CreatedAt.ToString("dd MMMM yyyy")</span>
+                    <span>👁️ @Model.Guide.ViewCount.ToString("N0") @(isEnglish ? "views" : "görüntülenme")</span>
+                </div>
+            </header>
+
+            <div>
+                @Html.Raw(Model.Content)
+            </div>
+
+            @if (Model.RelatedGuides.Any())
+            {
+                <section class="related-section">
+                    <h2 class="related-title">@(isEnglish ? "Related Guides" : "İlgili Rehberler")</h2>
+                    <div class="guide-grid">
+                        @foreach (var guide in Model.RelatedGuides)
+                        {
+                            var relTitle = isEnglish && !string.IsNullOrEmpty(guide.TitleEn) ? guide.TitleEn : guide.TitleTr;
+                            var relSummary = isEnglish && !string.IsNullOrEmpty(guide.SummaryEn) ? guide.SummaryEn : guide.SummaryTr;
+                            var relCatSlug = isEnglish && !string.IsNullOrEmpty(guide.Category?.SlugEn) ? guide.Category.SlugEn : guide.Category?.SlugTr;
+                            var relGuideSlug = isEnglish && !string.IsNullOrEmpty(guide.SlugEn) ? guide.SlugEn : guide.SlugTr;
+
+                            <article class="guide-card">
+                                <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@relCatSlug/@relGuideSlug" class="guide-title">
+                                    @relTitle
+                                </a>
+                                @if (!string.IsNullOrEmpty(relSummary))
+                                {
+                                    <p class="guide-summary">@relSummary</p>
+                                }
+                            </article>
+                        }
+                    </div>
+                </section>
+            }
+
+            <!-- Back to Category -->
+            <div style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #e2e8f0;">
+                <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@categorySlug" 
+                   style="display: inline-block; padding: 0.5rem 1rem; border: 1px solid #e2e8f0; border-radius: 6px; color: #64748b; text-decoration: none; font-size: 0.875rem;">
+                    ← @categoryName
+                </a>
+            </div>
+        </article>
+    </main>
+</div>
+
+@section Scripts {
+    <!-- Schema.org structured data for SEO -->
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "Article",
+        "headline": "@Model.Title",
+        "description": "@Model.MetaDescription",
+        "datePublished": "@Model.Guide.CreatedAt.ToString("yyyy-MM-dd")",
+        "dateModified": "@(Model.Guide.UpdatedAt?.ToString("yyyy-MM-dd") ?? Model.Guide.CreatedAt.ToString("yyyy-MM-dd"))",
+        "author": {
+            "@@type": "Organization",
+            "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")"
+        },
+        "publisher": {
+            "@@type": "Organization",
+            "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")"
+        },
+        "mainEntityOfPage": {
+            "@@type": "WebPage",
+            "@@id": "@Context.Request.Scheme://@Context.Request.Host@ViewBag.CanonicalUrl"
+        }
+        @if (ViewBag.SeoTags != null && ((List<string>)ViewBag.SeoTags).Any())
+        {
+            <text>,
+        "keywords": "@string.Join(", ", (List<string>)ViewBag.SeoTags)"</text>
+        }
+    }
+    </script>
+}
+

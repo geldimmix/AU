@@ -1,0 +1,75 @@
+@model List<AlgoritmaUzmani.Models.Entities.SeoTag>
+@{
+    ViewData["Title"] = "SEO Etiketleri";
+    Layout = "_AdminLayout";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h2 class="card-title">SEO Etiketleri (@Model.Count)</h2>
+        <a href="/admin/seotags/create" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i>
+            Yeni SEO Etiketi
+        </a>
+    </div>
+    <div class="card-body" style="padding-bottom: 0;">
+        <div class="alert alert-success" style="margin-bottom: 1.5rem;">
+            <i class="fas fa-info-circle"></i>
+            SEO etiketleri Google botlarına yönelik gizli etiketlerdir. Kullanıcılar tarafından görülmezler ancak arama motorlarının içeriği daha iyi anlamasına yardımcı olurlar.
+        </div>
+    </div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>İsim (TR)</th>
+                    <th>İsim (EN)</th>
+                    <th>Kullanım</th>
+                    <th>Oluşturulma</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Any())
+                {
+                    @foreach (var tag in Model)
+                    {
+                        <tr>
+                            <td><strong>@tag.NameTr</strong></td>
+                            <td class="text-muted">@(tag.NameEn ?? "-")</td>
+                            <td>@tag.GuideSeoTags.Count rehber</td>
+                            <td>@tag.CreatedAt.ToString("dd.MM.yyyy")</td>
+                            <td>
+                                <div class="table-actions">
+                                    <a href="/admin/seotags/edit/@tag.Id" class="btn btn-secondary btn-sm" title="Düzenle">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    @if (tag.GuideSeoTags.Count == 0)
+                                    {
+                                        <form asp-action="DeleteSeoTag" asp-route-id="@tag.Id" method="post" style="display: inline;"
+                                              onsubmit="return confirm('Bu SEO etiketini silmek istediğinize emin misiniz?');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-danger btn-sm" title="Sil">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                            Henüz SEO etiketi eklenmemiş.
+                            <a href="/admin/seotags/create">İlk SEO etiketini ekleyin</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+

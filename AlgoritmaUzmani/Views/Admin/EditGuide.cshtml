@@ -1,0 +1,559 @@
+@model AlgoritmaUzmani.Models.ViewModels.Admin.GuideViewModel
+@{
+    ViewData["Title"] = "Rehber Düzenle";
+    Layout = "_AdminLayout";
+}
+
+<form asp-action="EditGuide" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" id="guideForm">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="FeaturedImage" />
+
+    <div style="display: grid; grid-template-columns: 1fr 350px; gap: 1.5rem;">
+        <!-- Main Content -->
+        <div>
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h2 class="card-title">İçerik</h2>
+                    <div style="display: flex; gap: 0.5rem;">
+                        @if (!Model.IsTranslated)
+                        {
+                            <form asp-action="TranslateGuide" asp-route-id="@Model.Id" method="post" style="display: inline;">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('İçerik DeepInfra API ile İngilizce\'ye çevrilecek. Devam edilsin mi?');">
+                                    <i class="fas fa-language"></i>
+                                    Çevir (TR → EN)
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <span class="badge badge-success"><i class="fas fa-check"></i> Çevrildi</span>
+                        }
+                    </div>
+                </div>
+                <div class="card-body">
+                    <!-- Tabs -->
+                    <div class="tabs">
+                        <div class="tab active" data-tab="tr">🇹🇷 Türkçe</div>
+                        <div class="tab" data-tab="en">🇬🇧 İngilizce @(Model.IsTranslated ? "✓" : "")</div>
+                    </div>
+
+                    <!-- Turkish Content -->
+                    <div class="tab-content active" id="tab-tr">
+                        <div class="form-group">
+                            <label asp-for="TitleTr" class="form-label">Başlık (TR) *</label>
+                            <input asp-for="TitleTr" class="form-control" />
+                            <span asp-validation-for="TitleTr" class="text-danger"></span>
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="SummaryTr" class="form-label">Özet (TR)</label>
+                            <textarea asp-for="SummaryTr" class="form-control" rows="2"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">İçerik (TR) *</label>
+                            <div class="editor-toolbar">
+                                <button type="button" class="editor-btn" onclick="execCmd('bold')" title="Kalın"><i class="fas fa-bold"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmd('italic')" title="İtalik"><i class="fas fa-italic"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmd('underline')" title="Altı Çizili"><i class="fas fa-underline"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmd('strikeThrough')" title="Üstü Çizili"><i class="fas fa-strikethrough"></i></button>
+                                <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
+                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h2')" title="Başlık 2">H2</button>
+                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h3')" title="Başlık 3">H3</button>
+                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h4')" title="Başlık 4">H4</button>
+                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'p')" title="Paragraf">P</button>
+                                <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
+                                <button type="button" class="editor-btn" onclick="execCmd('insertUnorderedList')" title="Liste"><i class="fas fa-list-ul"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmd('insertOrderedList')" title="Numaralı Liste"><i class="fas fa-list-ol"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'blockquote')" title="Alıntı"><i class="fas fa-quote-left"></i></button>
+                                <button type="button" class="editor-btn" onclick="insertCode()" title="Kod Bloğu"><i class="fas fa-code"></i></button>
+                                <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
+                                <button type="button" class="editor-btn" onclick="insertLink()" title="Link"><i class="fas fa-link"></i></button>
+                                <button type="button" class="editor-btn" onclick="insertImage()" title="Resim"><i class="fas fa-image"></i></button>
+                                <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
+                                <button type="button" class="editor-btn" onclick="execCmd('justifyLeft')" title="Sola Hizala"><i class="fas fa-align-left"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmd('justifyCenter')" title="Ortala"><i class="fas fa-align-center"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmd('justifyRight')" title="Sağa Hizala"><i class="fas fa-align-right"></i></button>
+                            </div>
+                            <div class="editor-content" contenteditable="true" id="editorTr" 
+                                 style="min-height: 400px;" data-target="ContentTr"></div>
+                            <input type="hidden" asp-for="ContentTr" id="ContentTr" />
+                            <span asp-validation-for="ContentTr" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- English Content -->
+                    <div class="tab-content" id="tab-en">
+                        <div class="form-group">
+                            <label asp-for="TitleEn" class="form-label">Başlık (EN)</label>
+                            <input asp-for="TitleEn" class="form-control" />
+                        </div>
+
+                        <div class="form-group">
+                            <label asp-for="SummaryEn" class="form-label">Özet (EN)</label>
+                            <textarea asp-for="SummaryEn" class="form-control" rows="2"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">İçerik (EN)</label>
+                            <div class="editor-toolbar">
+                                <button type="button" class="editor-btn" onclick="execCmdEn('bold')" title="Bold"><i class="fas fa-bold"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmdEn('italic')" title="Italic"><i class="fas fa-italic"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmdEn('underline')" title="Underline"><i class="fas fa-underline"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmdEn('formatBlock', 'h2')" title="Heading 2">H2</button>
+                                <button type="button" class="editor-btn" onclick="execCmdEn('formatBlock', 'h3')" title="Heading 3">H3</button>
+                                <button type="button" class="editor-btn" onclick="execCmdEn('formatBlock', 'p')" title="Paragraph">P</button>
+                                <button type="button" class="editor-btn" onclick="execCmdEn('insertUnorderedList')" title="List"><i class="fas fa-list-ul"></i></button>
+                                <button type="button" class="editor-btn" onclick="execCmdEn('insertOrderedList')" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+                                <button type="button" class="editor-btn" onclick="insertLinkEn()" title="Link"><i class="fas fa-link"></i></button>
+                                <button type="button" class="editor-btn" onclick="insertImageEn()" title="Image"><i class="fas fa-image"></i></button>
+                            </div>
+                            <div class="editor-content" contenteditable="true" id="editorEn" 
+                                 style="min-height: 400px;" data-target="ContentEn"></div>
+                            <input type="hidden" asp-for="ContentEn" id="ContentEn" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEO -->
+            <div class="card">
+                <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 class="card-title">SEO Ayarları</h2>
+                    <button type="button" class="btn btn-secondary" id="btnSeoSuggestion" onclick="getSeoSuggestions()" style="font-size: 0.85rem; padding: 0.4rem 0.75rem;">
+                        <i class="fas fa-magic"></i> AI ile Öner
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="seoLoading" style="display: none; text-align: center; padding: 1rem; background: #f1f5f9; border-radius: 0.5rem; margin-bottom: 1rem;">
+                        <i class="fas fa-spinner fa-spin"></i> SEO önerileri oluşturuluyor...
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label asp-for="MetaDescriptionTr" class="form-label">Meta Açıklama (TR)</label>
+                            <textarea asp-for="MetaDescriptionTr" class="form-control" rows="2" maxlength="160"></textarea>
+                            <div class="form-hint">Kalan: <span id="metaTrCount">@(160 - (Model.MetaDescriptionTr?.Length ?? 0))</span> karakter</div>
+                        </div>
+                        <div class="form-group">
+                            <label asp-for="MetaDescriptionEn" class="form-label">Meta Açıklama (EN)</label>
+                            <textarea asp-for="MetaDescriptionEn" class="form-control" rows="2" maxlength="160"></textarea>
+                            <div class="form-hint">Remaining: <span id="metaEnCount">@(160 - (Model.MetaDescriptionEn?.Length ?? 0))</span> characters</div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label asp-for="SeoKeywordsTr" class="form-label">SEO Anahtar Kelimeler (TR)</label>
+                            <input asp-for="SeoKeywordsTr" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label asp-for="SeoKeywordsEn" class="form-label">SEO Anahtar Kelimeler (EN)</label>
+                            <input asp-for="SeoKeywordsEn" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div>
+            <!-- Publish -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h2 class="card-title">Yayınla</h2>
+                </div>
+                <div class="card-body">
+                    @if (Model.CreatedAt.HasValue)
+                    {
+                        <div class="text-muted mb-2" style="font-size: 0.8rem;">
+                            <i class="fas fa-calendar"></i> Oluşturulma: @(Model.CreatedAt.Value.ToString("dd.MM.yyyy HH:mm"))
+                            @if (Model.UpdatedAt.HasValue)
+                            {
+                                <text><br><i class="fas fa-edit"></i> Güncelleme: @(Model.UpdatedAt.Value.ToString("dd.MM.yyyy HH:mm"))</text>
+                            }
+                            <br><i class="fas fa-eye"></i> Görüntülenme: @(Model.ViewCount.ToString("N0"))
+                        </div>
+                    }
+
+                    <div class="form-group">
+                        <label asp-for="CategoryId" class="form-label">Kategori *</label>
+                        <select asp-for="CategoryId" asp-items="Model.Categories" class="form-control">
+                            <option value="">-- Seçin --</option>
+                        </select>
+                        <span asp-validation-for="CategoryId" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input asp-for="IsActive" type="checkbox" />
+                            <label asp-for="IsActive">Aktif (Yayınla)</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <div class="form-check">
+                            <input asp-for="IsFeatured" type="checkbox" />
+                            <label asp-for="IsFeatured">Öne Çıkan</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="DisplayOrder" class="form-label">Sıralama</label>
+                        <input asp-for="DisplayOrder" type="number" class="form-control" />
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <i class="fas fa-save"></i>
+                        Güncelle
+                    </button>
+
+                    <a href="/admin/guides" class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem;">
+                        <i class="fas fa-arrow-left"></i>
+                        Geri
+                    </a>
+                </div>
+            </div>
+
+            <!-- Image -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h2 class="card-title">Öne Çıkan Görsel</h2>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.FeaturedImage))
+                    {
+                        <div id="currentImage" style="margin-bottom: 1rem;">
+                            <img src="/appdata/@Model.FeaturedImage" style="max-width: 100%; border-radius: 0.5rem;" />
+                        </div>
+                    }
+
+                    <div class="form-group">
+                        <input type="file" name="featuredImage" id="featuredImage" class="form-control" accept="image/*" />
+                        <div class="form-hint">Max 10MB (jpg, png, gif, webp)</div>
+                    </div>
+                    <div id="imagePreview" style="margin-top: 0.5rem;"></div>
+
+                    <div class="form-group mt-2">
+                        <label asp-for="FeaturedImageAltTr" class="form-label">Alt Yazı (TR)</label>
+                        <input asp-for="FeaturedImageAltTr" class="form-control" />
+                    </div>
+
+                    <div class="form-group">
+                        <label asp-for="FeaturedImageAltEn" class="form-label">Alt Yazı (EN)</label>
+                        <input asp-for="FeaturedImageAltEn" class="form-control" />
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h2 class="card-title">Etiketler</h2>
+                </div>
+                <div class="card-body">
+                    <div class="form-group mb-0">
+                        <label class="form-label">Ana Etiketler</label>
+                        <select asp-for="SelectedTagIds" asp-items="Model.Tags" class="form-control" multiple>
+                        </select>
+                        <div class="form-hint">Ctrl+Click ile çoklu seçim</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SEO Tags -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h2 class="card-title">SEO Etiketleri</h2>
+                </div>
+                <div class="card-body">
+                    <div class="form-group mb-0">
+                        <select asp-for="SelectedSeoTagIds" asp-items="Model.SeoTags" class="form-control" multiple>
+                        </select>
+                        <div class="form-hint">Google botları için gizli etiketler</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Related Guides -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">İlgili Rehberler</h2>
+                </div>
+                <div class="card-body">
+                    <div class="form-group mb-0">
+                        <select asp-for="RelatedGuideIds" asp-items="Model.AllGuides" class="form-control" multiple>
+                        </select>
+                        <div class="form-hint">Sayfada gösterilecek ilgili rehberler</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Image Upload Modal -->
+<div class="modal-overlay" id="imageModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">Resim Ekle</h3>
+            <button type="button" class="modal-close" onclick="closeImageModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="tabs" style="margin-bottom: 1rem;">
+                <div class="tab active" data-modal-tab="upload">Yükle</div>
+                <div class="tab" data-modal-tab="url">URL</div>
+            </div>
+            
+            <div id="modal-upload" class="tab-content active">
+                <div class="form-group">
+                    <label class="form-label">Resim Seç</label>
+                    <input type="file" id="modalImageFile" class="form-control" accept="image/*" />
+                </div>
+            </div>
+            
+            <div id="modal-url" class="tab-content">
+                <div class="form-group">
+                    <label class="form-label">Resim URL</label>
+                    <input type="text" id="modalImageUrl" class="form-control" placeholder="https://..." />
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Hizalama</label>
+                <select id="imageAlign" class="form-control">
+                    <option value="">Varsayılan</option>
+                    <option value="left">Sol</option>
+                    <option value="center">Orta</option>
+                    <option value="right">Sağ</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Genişlik (px veya %)</label>
+                <input type="text" id="imageWidth" class="form-control" placeholder="Örn: 500 veya 100%" />
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeImageModal()">İptal</button>
+            <button type="button" class="btn btn-primary" onclick="confirmInsertImage()">Ekle</button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Tabs
+    document.querySelectorAll('.tab[data-tab]').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-tab');
+            document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+        });
+    });
+
+    // Modal Tabs
+    document.querySelectorAll('.tab[data-modal-tab]').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-modal-tab');
+            document.querySelectorAll('.tab[data-modal-tab]').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#imageModal .tab-content').forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('modal-' + tabId).classList.add('active');
+        });
+    });
+
+    // Editor Commands
+    function execCmd(command, value = null) {
+        document.getElementById('editorTr').focus();
+        document.execCommand(command, false, value);
+    }
+
+    function execCmdEn(command, value = null) {
+        document.getElementById('editorEn').focus();
+        document.execCommand(command, false, value);
+    }
+
+    function insertCode() {
+        const code = prompt('Kod bloğu (dil):', 'javascript');
+        if (code !== null) {
+            execCmd('insertHTML', '<pre><code class="language-' + code + '">\n// Kodunuzu buraya yazın\n</code></pre><p></p>');
+        }
+    }
+
+    function insertLink() {
+        const url = prompt('Link URL:', 'https://');
+        if (url) {
+            execCmd('createLink', url);
+        }
+    }
+
+    function insertLinkEn() {
+        const url = prompt('Link URL:', 'https://');
+        if (url) {
+            document.getElementById('editorEn').focus();
+            document.execCommand('createLink', false, url);
+        }
+    }
+
+    let currentEditor = 'tr';
+    
+    function insertImage() {
+        currentEditor = 'tr';
+        document.getElementById('imageModal').classList.add('active');
+    }
+
+    function insertImageEn() {
+        currentEditor = 'en';
+        document.getElementById('imageModal').classList.add('active');
+    }
+
+    function closeImageModal() {
+        document.getElementById('imageModal').classList.remove('active');
+        document.getElementById('modalImageFile').value = '';
+        document.getElementById('modalImageUrl').value = '';
+        document.getElementById('imageWidth').value = '';
+        document.getElementById('imageAlign').value = '';
+    }
+
+    async function confirmInsertImage() {
+        const file = document.getElementById('modalImageFile').files[0];
+        const url = document.getElementById('modalImageUrl').value;
+        const width = document.getElementById('imageWidth').value;
+        const align = document.getElementById('imageAlign').value;
+        
+        let imgUrl = url;
+        
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            try {
+                const response = await fetch('/admin/upload-image', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+                if (result.success) {
+                    imgUrl = result.url;
+                } else {
+                    alert('Yükleme hatası: ' + result.error);
+                    return;
+                }
+            } catch (e) {
+                alert('Yükleme hatası: ' + e.message);
+                return;
+            }
+        }
+        
+        if (!imgUrl) {
+            alert('Lütfen bir resim seçin veya URL girin');
+            return;
+        }
+        
+        let style = '';
+        if (width) style += 'width:' + width + ';';
+        if (align === 'center') style += 'display:block;margin:0 auto;';
+        else if (align === 'left') style += 'float:left;margin-right:1rem;';
+        else if (align === 'right') style += 'float:right;margin-left:1rem;';
+        
+        const img = '<img src="' + imgUrl + '"' + (style ? ' style="' + style + '"' : '') + ' />';
+        
+        const editor = currentEditor === 'tr' ? document.getElementById('editorTr') : document.getElementById('editorEn');
+        editor.focus();
+        document.execCommand('insertHTML', false, img);
+        
+        closeImageModal();
+    }
+
+    // Featured Image Preview
+    document.getElementById('featuredImage').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('imagePreview').innerHTML = 
+                    '<img src="' + e.target.result + '" style="max-width:100%;border-radius:0.5rem;" />';
+                const currentImg = document.getElementById('currentImage');
+                if (currentImg) currentImg.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Meta description counter
+    document.getElementById('MetaDescriptionTr').addEventListener('input', function() {
+        document.getElementById('metaTrCount').textContent = 160 - this.value.length;
+    });
+    document.getElementById('MetaDescriptionEn').addEventListener('input', function() {
+        document.getElementById('metaEnCount').textContent = 160 - this.value.length;
+    });
+
+    // Form submit - copy editor content
+    document.getElementById('guideForm').addEventListener('submit', function(e) {
+        document.getElementById('ContentTr').value = document.getElementById('editorTr').innerHTML;
+        document.getElementById('ContentEn').value = document.getElementById('editorEn').innerHTML;
+    });
+
+    // Load existing content
+    window.addEventListener('load', function() {
+        const contentTr = document.getElementById('ContentTr').value;
+        const contentEn = document.getElementById('ContentEn').value;
+        if (contentTr) document.getElementById('editorTr').innerHTML = contentTr;
+        if (contentEn) document.getElementById('editorEn').innerHTML = contentEn;
+    });
+
+    // SEO Suggestions
+    async function getSeoSuggestions() {
+        const title = document.getElementById('TitleTr').value;
+        const content = document.getElementById('editorTr').innerHTML;
+        
+        if (!title && !content) {
+            alert('Lütfen önce başlık veya içerik girin');
+            return;
+        }
+        
+        const btn = document.getElementById('btnSeoSuggestion');
+        const loading = document.getElementById('seoLoading');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Bekleniyor...';
+        loading.style.display = 'block';
+        
+        try {
+            const response = await fetch('/admin/guides/seo-suggestions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ title, content })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                if (result.metaDescription) {
+                    document.getElementById('MetaDescriptionTr').value = result.metaDescription;
+                    document.getElementById('metaTrCount').textContent = 160 - result.metaDescription.length;
+                }
+                if (result.keywords) {
+                    document.getElementById('SeoKeywordsTr').value = result.keywords;
+                }
+                alert('SEO önerileri başarıyla eklendi! İsterseniz düzenleyebilirsiniz.');
+            } else {
+                alert('Hata: ' + result.error);
+            }
+        } catch (e) {
+            alert('Bir hata oluştu: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-magic"></i> AI ile Öner';
+            loading.style.display = 'none';
+        }
+    }
+</script>
+}
+

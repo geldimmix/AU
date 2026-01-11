@@ -1,0 +1,94 @@
+@model AlgoritmaUzmani.Models.ViewModels.Public.CategoryDetailViewModel
+@{
+    Layout = "_Layout";
+    var isEnglish = Model.Language == "en";
+    var categoryName = isEnglish && !string.IsNullOrEmpty(Model.Category.NameEn) ? Model.Category.NameEn : Model.Category.NameTr;
+    var categoryDesc = isEnglish && !string.IsNullOrEmpty(Model.Category.DescriptionEn) ? Model.Category.DescriptionEn : Model.Category.DescriptionTr;
+    var categorySlug = isEnglish && !string.IsNullOrEmpty(Model.Category.SlugEn) ? Model.Category.SlugEn : Model.Category.SlugTr;
+}
+
+<div class="main-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <h2 class="sidebar-title">@(isEnglish ? "CATEGORIES" : "KATEGORİLER")</h2>
+        <ul class="category-list">
+            @foreach (var category in Model.AllCategories)
+            {
+                var catName = isEnglish && !string.IsNullOrEmpty(category.NameEn) ? category.NameEn : category.NameTr;
+                var catSlug = isEnglish && !string.IsNullOrEmpty(category.SlugEn) ? category.SlugEn : category.SlugTr;
+                var isActive = category.Id == Model.Category.Id;
+                <li class="category-item">
+                    <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@catSlug" class="category-link @(isActive ? "active" : "")">
+                        <span class="category-icon">@category.Icon</span>
+                        @catName
+                    </a>
+                </li>
+            }
+        </ul>
+    </aside>
+
+    <!-- Content -->
+    <main class="content">
+        <nav class="breadcrumb">
+            <a href="@(isEnglish ? "/en" : "/")">@(isEnglish ? "Home" : "Ana Sayfa")</a>
+            <span class="breadcrumb-sep">›</span>
+            <a href="@(isEnglish ? "/en/guides" : "/rehberler")">@(isEnglish ? "Guides" : "Rehberler")</a>
+            <span class="breadcrumb-sep">›</span>
+            <span>@categoryName</span>
+        </nav>
+
+        <div class="page-header">
+            <h1 class="page-title">@Model.Category.Icon @categoryName</h1>
+            @if (!string.IsNullOrEmpty(categoryDesc))
+            {
+                <p class="page-description">@categoryDesc</p>
+            }
+        </div>
+
+        @if (Model.Guides.Any())
+        {
+            <div class="guide-grid">
+                @foreach (var guide in Model.Guides)
+                {
+                    var title = isEnglish && !string.IsNullOrEmpty(guide.TitleEn) ? guide.TitleEn : guide.TitleTr;
+                    var summary = isEnglish && !string.IsNullOrEmpty(guide.SummaryEn) ? guide.SummaryEn : guide.SummaryTr;
+                    var guideSlug = isEnglish && !string.IsNullOrEmpty(guide.SlugEn) ? guide.SlugEn : guide.SlugTr;
+
+                    <article class="guide-card @(guide.IsFeatured ? "featured" : "")">
+                        <div class="guide-tags">
+                            @if (guide.IsFeatured)
+                            {
+                                <span class="tag featured">@(isEnglish ? "Featured" : "Öne Çıkan")</span>
+                            }
+                            @foreach (var tag in guide.GuideTags.Take(2))
+                            {
+                                var tagName = isEnglish && !string.IsNullOrEmpty(tag.Tag.NameEn) ? tag.Tag.NameEn : tag.Tag.NameTr;
+                                <span class="tag" style="@(!string.IsNullOrEmpty(tag.Tag.Color) ? $"background:{tag.Tag.Color};color:#fff;" : "")">
+                                    @tagName
+                                </span>
+                            }
+                        </div>
+                        <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@categorySlug/@guideSlug" class="guide-title">
+                            @title
+                        </a>
+                        @if (!string.IsNullOrEmpty(summary))
+                        {
+                            <p class="guide-summary">@summary</p>
+                        }
+                        <div class="guide-meta">
+                            @(isEnglish ? "Updated" : "Güncelleme") @(guide.UpdatedAt?.ToString("dd MMM yyyy") ?? guide.CreatedAt.ToString("dd MMM yyyy"))
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+        else
+        {
+            <div style="text-align: center; padding: 3rem; color: var(--text-light);">
+                <p style="font-size: 3rem; margin-bottom: 1rem;">📝</p>
+                <p>@(isEnglish ? "No guides in this category yet." : "Bu kategoride henüz rehber yok.")</p>
+            </div>
+        }
+    </main>
+</div>
+

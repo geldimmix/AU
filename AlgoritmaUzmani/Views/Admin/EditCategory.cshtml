@@ -1,0 +1,72 @@
+@model AlgoritmaUzmani.Models.ViewModels.Admin.CategoryViewModel
+@{
+    ViewData["Title"] = "Kategori Düzenle";
+    Layout = "_AdminLayout";
+}
+
+<div class="card" style="max-width: 800px;">
+    <div class="card-header">
+        <h2 class="card-title">Kategori Düzenle</h2>
+        <span class="badge badge-info">@Model.GuideCount Rehber</span>
+    </div>
+    <div class="card-body">
+        <form asp-action="EditCategory" asp-route-id="@Model.Id" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label asp-for="NameTr" class="form-label">İsim (TR) *</label>
+                    <input asp-for="NameTr" class="form-control" />
+                    <span asp-validation-for="NameTr" class="text-danger"></span>
+                </div>
+                <div class="form-group">
+                    <label asp-for="NameEn" class="form-label">İsim (EN)</label>
+                    <input asp-for="NameEn" class="form-control" />
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label asp-for="DescriptionTr" class="form-label">Açıklama (TR)</label>
+                    <textarea asp-for="DescriptionTr" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label asp-for="DescriptionEn" class="form-label">Açıklama (EN)</label>
+                    <textarea asp-for="DescriptionEn" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label asp-for="Icon" class="form-label">İkon (Emoji)</label>
+                    <input asp-for="Icon" class="form-control" />
+                    <div class="form-hint">Windows: Win+. ile emoji seçin</div>
+                </div>
+                <div class="form-group">
+                    <label asp-for="DisplayOrder" class="form-label">Sıralama</label>
+                    <input asp-for="DisplayOrder" type="number" class="form-control" />
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="form-check">
+                    <input asp-for="IsActive" type="checkbox" />
+                    <label asp-for="IsActive">Aktif</label>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Güncelle
+                </button>
+                <a href="/admin/categories" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Geri
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+

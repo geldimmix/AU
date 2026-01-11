@@ -1,0 +1,44 @@
+@model AlgoritmaUzmani.Models.ViewModels.Admin.SeoTagViewModel
+@{
+    ViewData["Title"] = "Yeni SEO Etiketi";
+    Layout = "_AdminLayout";
+}
+
+<div class="card" style="max-width: 600px;">
+    <div class="card-header">
+        <h2 class="card-title">Yeni SEO Etiketi Oluştur</h2>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-success" style="margin-bottom: 1.5rem;">
+            <i class="fas fa-info-circle"></i>
+            SEO etiketleri sayfa kaynak kodunda <code>&lt;meta&gt;</code> etiketleri olarak yer alır ve Google botlarının içeriği kategorize etmesine yardımcı olur.
+        </div>
+
+        <form asp-action="CreateSeoTag" method="post">
+            @Html.AntiForgeryToken()
+
+            <div class="form-group">
+                <label asp-for="NameTr" class="form-label">İsim (TR) *</label>
+                <input asp-for="NameTr" class="form-control" placeholder="Örn: Veri Yapıları" />
+                <span asp-validation-for="NameTr" class="text-danger"></span>
+            </div>
+
+            <div class="form-group">
+                <label asp-for="NameEn" class="form-label">İsim (EN)</label>
+                <input asp-for="NameEn" class="form-control" placeholder="Örn: Data Structures" />
+            </div>
+
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i>
+                    Kaydet
+                </button>
+                <a href="/admin/seotags" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    İptal
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
