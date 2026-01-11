@@ -344,6 +344,37 @@ public class GuideService : IGuideService
         await _cache.RemoveByPrefixAsync(CachePrefix);
     }
 
+    public async Task<List<Guide>> SearchAsync(string query, string language = "tr", int limit = 10)
+    {
+        if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+            return new List<Guide>();
+
+        query = query.ToLower().Trim();
+
+        var guides = await _context.Guides
+            .Include(g => g.Category)
+            .Where(g => g.IsActive)
+            .Where(g => 
+                (language == "tr" 
+                    ? g.TitleTr.ToLower().Contains(query) || 
+                      (g.SummaryTr != null && g.SummaryTr.ToLower().Contains(query))
+                    : (g.TitleEn != null && g.TitleEn.ToLower().Contains(query)) || 
+                      (g.SummaryEn != null && g.SummaryEn.ToLower().Contains(query)) ||
+                      g.TitleTr.ToLower().Contains(query)
+                )
+            )
+            .OrderByDescending(g => 
+                language == "tr" 
+                    ? g.TitleTr.ToLower().StartsWith(query) 
+                    : (g.TitleEn != null && g.TitleEn.ToLower().StartsWith(query))
+            )
+            .ThenByDescending(g => g.ViewCount)
+            .Take(limit)
+            .ToListAsync();
+
+        return guides;
+    }
+
     private static string? TruncateString(string? value, int maxLength)
     {
         if (string.IsNullOrEmpty(value)) return value;

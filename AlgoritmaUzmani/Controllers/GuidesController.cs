@@ -160,5 +160,31 @@ public class GuidesController : Controller
 
         return View(model);
     }
+
+    // GET: /api/search?q=query&lang=tr
+    [HttpGet("/api/search")]
+    public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] string lang = "tr")
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+            return Json(new { results = Array.Empty<object>() });
+
+        var guides = await _guideService.SearchAsync(q, lang, 8);
+
+        var results = guides.Select(g => new
+        {
+            id = g.Id,
+            title = lang == "en" && !string.IsNullOrEmpty(g.TitleEn) ? g.TitleEn : g.TitleTr,
+            summary = lang == "en" && !string.IsNullOrEmpty(g.SummaryEn) 
+                ? (g.SummaryEn.Length > 80 ? g.SummaryEn.Substring(0, 80) + "..." : g.SummaryEn)
+                : (g.SummaryTr != null && g.SummaryTr.Length > 80 ? g.SummaryTr.Substring(0, 80) + "..." : g.SummaryTr),
+            category = lang == "en" && !string.IsNullOrEmpty(g.Category.NameEn) ? g.Category.NameEn : g.Category.NameTr,
+            categoryIcon = g.Category.Icon,
+            url = lang == "en" 
+                ? $"/en/guides/{g.Category.SlugEn ?? g.Category.SlugTr}/{g.SlugEn ?? g.SlugTr}"
+                : $"/rehberler/{g.Category.SlugTr}/{g.SlugTr}"
+        });
+
+        return Json(new { results });
+    }
 }
 
