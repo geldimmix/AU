@@ -6,7 +6,7 @@
 
 <form asp-action="CreateGuide" method="post" enctype="multipart/form-data" id="guideForm">
     @Html.AntiForgeryToken()
-    
+
     <!-- Hidden field for code blocks JSON -->
     <input type="hidden" asp-for="CodeBlocksJson" id="CodeBlocksJson" />
 
@@ -415,8 +415,29 @@
                     <i class="fas fa-language"></i> Tüm Dillere Çevir
                 </button>
                 
-                <div id="translationProgress" style="display: none; margin-top: 1rem; padding: 1rem; background: #f1f5f9; border-radius: 0.5rem;">
-                    <i class="fas fa-spinner fa-spin"></i> Kodlar çevriliyor, lütfen bekleyin...
+                <div id="translationProgress" style="display: none; margin-top: 1rem;">
+                    <div style="padding: 1rem; background: #f1f5f9; border-radius: 0.5rem; margin-bottom: 0.75rem;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <i class="fas fa-spinner fa-spin" style="color: #2563eb;"></i>
+                            <span id="progressText" style="font-weight: 600; color: #1e293b;">
+                                Çeviriler hazırlanıyor...
+                            </span>
+                        </div>
+                        <div style="font-size: 0.875rem; color: #64748b; margin-bottom: 0.75rem;" id="progressDetail">
+                            Deep Infra API ile çeviriler yapılıyor. Bu işlem 30-60 saniye sürebilir.
+                        </div>
+                        <!-- Progress Bar -->
+                        <div style="width: 100%; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+                            <div id="progressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%); transition: width 0.3s ease;"></div>
+                        </div>
+                        <div style="text-align: center; margin-top: 0.5rem; font-size: 0.875rem; color: #64748b;" id="progressPercent">
+                            0%
+                        </div>
+                    </div>
+                    <div style="padding: 0.75rem; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 0.5rem; font-size: 0.875rem; color: #92400e;">
+                        <i class="fas fa-info-circle"></i> 
+                        <strong>Önemli:</strong> Lütfen sayfayı kapatmayın veya yenilemeyin. Çeviri işlemi devam ediyor.
+                    </div>
                 </div>
             </div>
         </div>
@@ -557,16 +578,41 @@
 
         const btn = document.getElementById('btnTranslateCode');
         const progress = document.getElementById('translationProgress');
+        const progressBar = document.getElementById('progressBar');
+        const progressPercent = document.getElementById('progressPercent');
+        const progressText = document.getElementById('progressText');
+        const progressDetail = document.getElementById('progressDetail');
 
         btn.disabled = true;
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Çevriliyor...';
         progress.style.display = 'block';
 
+        // Simulate progress (since backend does all translations at once)
+        let currentProgress = 0;
+        const totalLanguages = targetLangs.length;
+        const estimatedTime = totalLanguages * 2; // 2 seconds per language estimate
+        
+        progressText.textContent = `${totalLanguages} dile çeviri yapılıyor...`;
+        progressDetail.textContent = `Tahmini süre: ${estimatedTime} saniye. Lütfen bekleyin ve sayfayı yenilemeyin.`;
+
+        // Progress animation
+        const progressInterval = setInterval(() => {
+            if (currentProgress < 90) {
+                currentProgress += Math.random() * 3;
+                if (currentProgress > 90) currentProgress = 90;
+                progressBar.style.width = currentProgress + '%';
+                progressPercent.textContent = Math.floor(currentProgress) + '%';
+            }
+        }, 500);
+
         try {
+            const startTime = Date.now();
+            
             const response = await fetch('/admin/translate-code', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
                 },
                 body: JSON.stringify({
                     sourceCode: sourceCode,
@@ -575,21 +621,50 @@
                 })
             });
 
+            clearInterval(progressInterval);
+            const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
             const result = await response.json();
 
             if (result.success) {
                 currentCodeTranslations = result.translations;
                 currentCodeLanguage = sourceLang;
-                alert('Kod çevirileri başarıyla oluşturuldu! Şimdi "Ekle" butonuna tıklayın.');
+                
+                // Complete progress
+                progressBar.style.width = '100%';
+                progressPercent.textContent = '100%';
+                progressText.innerHTML = '<i class="fas fa-check-circle" style="color: #10b981;"></i> Çeviriler tamamlandı!';
+                progressDetail.textContent = `${Object.keys(result.translations).length} dil başarıyla çevrildi (${elapsedTime} saniye).`;
+                
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    progressPercent.textContent = '0%';
+                    alert(`✅ Başarılı!\n\n${Object.keys(result.translations).length} dile çeviri tamamlandı.\nŞimdi "Ekle" butonuna tıklayarak kodu içeriğe ekleyebilirsiniz.`);
+                }, 2000);
             } else {
-                alert('Hata: ' + result.error);
+                throw new Error(result.error || 'Bilinmeyen hata');
             }
         } catch (e) {
-            alert('Bir hata oluştu: ' + e.message);
+            clearInterval(progressInterval);
+            progressBar.style.width = '100%';
+            progressBar.style.background = '#ef4444';
+            progressText.innerHTML = '<i class="fas fa-times-circle" style="color: #ef4444;"></i> Hata oluştu!';
+            progressDetail.textContent = e.message;
+            
+            setTimeout(() => {
+                progress.style.display = 'none';
+                progressBar.style.width = '0%';
+                progressBar.style.background = 'linear-gradient(90deg, #2563eb 0%, #7c3aed 100%)';
+                alert('❌ Hata: ' + e.message + '\n\nLütfen tekrar deneyin veya daha az dil seçin.');
+            }, 3000);
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-language"></i> Kodu Çevir';
-            progress.style.display = 'none';
+            btn.innerHTML = '<i class="fas fa-language"></i> Tüm Dillere Çevir';
         }
     }
 
@@ -867,7 +942,44 @@
         if (codeBlocksData.length > 0) {
             document.getElementById('CodeBlocksJson').value = JSON.stringify(codeBlocksData);
         }
+
+        // Show loading overlay
+        showSaveProgress();
     });
+
+    // Show save progress overlay
+    function showSaveProgress() {
+        const overlay = document.createElement('div');
+        overlay.id = 'saveOverlay';
+        overlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        `;
+        
+        overlay.innerHTML = `
+            <div style="background: white; padding: 2rem 3rem; border-radius: 1rem; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3); max-width: 400px;">
+                <div style="width: 80px; height: 80px; margin: 0 auto 1.5rem; border: 4px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <h3 style="margin: 0 0 0.5rem; color: #1e293b; font-size: 1.25rem;">Rehber Kaydediliyor</h3>
+                <p style="margin: 0; color: #64748b; font-size: 0.875rem;">Lütfen bekleyin, işlem tamamlanıyor...</p>
+                <p style="margin: 1rem 0 0; color: #f59e0b; font-size: 0.75rem; font-weight: 600;">
+                    <i class="fas fa-info-circle"></i> Sayfayı kapatmayın
+                </p>
+            </div>
+            <style>
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            </style>
+        `;
+        
+        document.body.appendChild(overlay);
+    }
 
     // Load existing content
     window.addEventListener('load', function() {
