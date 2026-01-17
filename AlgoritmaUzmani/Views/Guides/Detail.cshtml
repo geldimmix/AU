@@ -10,12 +10,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <!-- Prism.js for Code Highlighting -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-    <!-- Prism.js Plugins -->
+    <!-- Prism.js Essential Plugins -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css" rel="stylesheet" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-highlight/prism-line-highlight.min.css" rel="stylesheet" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/match-braces/prism-match-braces.min.css" rel="stylesheet" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/command-line/prism-command-line.min.css" rel="stylesheet" />
     <style>
         .guide-header {
             margin-bottom: 2rem;
@@ -194,62 +191,6 @@
             border-color: #10b981;
         }
 
-        /* Line Highlight */
-        .line-highlight {
-            background: rgba(101, 167, 249, 0.15);
-            background: linear-gradient(to right, rgba(101, 167, 249, 0.15) 70%, rgba(101, 167, 249, 0));
-        }
-
-        .line-highlight:before,
-        .line-highlight[data-end]:after {
-            background-color: #65a7f9;
-            color: white;
-            font-weight: 600;
-            padding: 0.125rem 0.5rem;
-            border-radius: 0.25rem;
-        }
-
-        /* Match Braces */
-        .rainbow-braces .token.punctuation.brace-level-1,
-        .rainbow-braces .token.punctuation.brace-level-5,
-        .rainbow-braces .token.punctuation.brace-level-9 {
-            color: #ffd700;
-        }
-
-        .rainbow-braces .token.punctuation.brace-level-2,
-        .rainbow-braces .token.punctuation.brace-level-6,
-        .rainbow-braces .token.punctuation.brace-level-10 {
-            color: #da70d6;
-        }
-
-        .rainbow-braces .token.punctuation.brace-level-3,
-        .rainbow-braces .token.punctuation.brace-level-7,
-        .rainbow-braces .token.punctuation.brace-level-11 {
-            color: #87ceeb;
-        }
-
-        .rainbow-braces .token.punctuation.brace-level-4,
-        .rainbow-braces .token.punctuation.brace-level-8,
-        .rainbow-braces .token.punctuation.brace-level-12 {
-            color: #fa8072;
-        }
-
-        .brace-hover {
-            background: rgba(255, 215, 0, 0.2);
-            outline: 1px solid rgba(255, 215, 0, 0.5);
-            outline-offset: 1px;
-        }
-
-        /* Command Line */
-        .command-line-prompt {
-            border-right: 1px solid #4a5568;
-        }
-
-        .command-line-prompt > span:before {
-            color: #48bb78;
-            font-weight: 600;
-        }
-
         /* Smooth Scrollbar for Code */
         pre[class*="language-"]::-webkit-scrollbar {
             height: 8px;
@@ -421,31 +362,17 @@
     <!-- Prism.js Autoloader (otomatik tüm dilleri yükler) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
     
-    <!-- Prism.js Plugins -->
+    <!-- Essential Plugins Only -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/show-language/prism-show-language.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/match-braces/prism-match-braces.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autolinker/prism-autolinker.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/command-line/prism-command-line.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/normalize-whitespace/prism-normalize-whitespace.min.js"></script>
 
     <script>
         // Highlight all code blocks on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Configure Prism plugins first
-            if (typeof Prism !== 'undefined') {
-                // Normalize whitespace
-                Prism.plugins.NormalizeWhitespace.setDefaults({
-                    'remove-trailing': true,
-                    'remove-indent': true,
-                    'left-trim': true,
-                    'right-trim': true
-                });
-            }
-
+            console.log('Initializing Prism.js...');
+            
             // Fix old code blocks without language class
             fixOldCodeBlocks();
 
@@ -455,12 +382,14 @@
             // Highlight after DOM updates
             setTimeout(function() {
                 if (typeof Prism !== 'undefined') {
+                    console.log('Prism object found, highlighting...');
                     Prism.highlightAll();
-                    console.log('Prism.js highlighting completed');
+                    console.log('✅ Prism.js highlighting completed');
+                    console.log('Total code blocks:', document.querySelectorAll('pre code').length);
                 } else {
-                    console.error('Prism.js not loaded!');
+                    console.error('❌ Prism.js not loaded!');
                 }
-            }, 100);
+            }, 200);
         });
 
         // Fix old code blocks that don't have language-* class
@@ -549,8 +478,8 @@
                 contentHtml += '<div class="code-content" data-lang="' + lang + '" ';
                 contentHtml += 'style="display: ' + (first ? 'block' : 'none') + ';">';
                 
-                // Pre element with line numbers and match-braces classes
-                contentHtml += '<pre class="line-numbers match-braces rainbow-braces" style="margin: 0;" ';
+                // Pre element with line numbers
+                contentHtml += '<pre class="line-numbers" style="margin: 0;" ';
                 contentHtml += 'data-start="1">';
                 
                 // Code element with language class
