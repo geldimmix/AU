@@ -121,6 +121,7 @@ public class GuidesController : Controller
 
         var relatedGuides = await _guideService.GetRelatedGuidesAsync(guide.Id);
         var allCategories = await _categoryService.GetAllAsync();
+        var codeBlocks = await _guideService.GetCodeBlocksByGuideIdAsync(guide.Id);
 
         var model = new GuideDetailViewModel
         {
@@ -128,6 +129,7 @@ public class GuidesController : Controller
             Category = guide.Category,
             RelatedGuides = relatedGuides,
             AllCategories = allCategories,
+            CodeBlocks = codeBlocks,
             Language = language
         };
 

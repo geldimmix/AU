@@ -345,6 +345,23 @@ public class AdminController : Controller
         if (model.RelatedGuideIds.Any())
             await _guideService.SetRelatedGuidesAsync(created.Id, model.RelatedGuideIds);
 
+        // Save code blocks
+        if (!string.IsNullOrWhiteSpace(model.CodeBlocksJson))
+        {
+            try
+            {
+                var codeBlocks = System.Text.Json.JsonSerializer.Deserialize<List<CodeBlockDto>>(model.CodeBlocksJson);
+                if (codeBlocks != null && codeBlocks.Any())
+                {
+                    await _guideService.SaveCodeBlocksAsync(created.Id, codeBlocks);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to save code blocks for guide: {GuideId}", created.Id);
+            }
+        }
+
         TempData["Success"] = "Rehber başarıyla oluşturuldu";
         return RedirectToAction(nameof(EditGuide), new { id = created.Id });
     }
@@ -806,6 +823,15 @@ public class AdminController : Controller
         public string SourceCode { get; set; } = string.Empty;
         public string SourceLanguage { get; set; } = string.Empty;
         public List<string> TargetLanguages { get; set; } = new();
+    }
+
+    public class CodeBlockDto
+    {
+        public string BlockId { get; set; } = string.Empty;
+        public string SourceLanguage { get; set; } = string.Empty;
+        public string SourceCode { get; set; } = string.Empty;
+        public Dictionary<string, string> Translations { get; set; } = new();
+        public int DisplayOrder { get; set; }
     }
 
     #endregion

@@ -8,6 +8,7 @@ public class GuideDetailViewModel
     public Category Category { get; set; } = null!;
     public List<Guide> RelatedGuides { get; set; } = new();
     public List<Category> AllCategories { get; set; } = new();
+    public List<CodeBlock> CodeBlocks { get; set; } = new();
     public string Language { get; set; } = "tr";
 
     // SEO Properties

@@ -21,5 +21,7 @@ public interface IGuideService
     Task SetTagsAsync(int guideId, List<int> tagIds);
     Task SetSeoTagsAsync(int guideId, List<int> seoTagIds);
     Task<List<Guide>> SearchAsync(string query, string language = "tr", int limit = 10);
+    Task SaveCodeBlocksAsync<T>(int guideId, List<T> codeBlocks) where T : class;
+    Task<List<CodeBlock>> GetCodeBlocksByGuideIdAsync(int guideId);
 }
 

@@ -196,9 +196,15 @@
                 </div>
             </header>
 
-            <div>
+            <div id="guideContent">
                 @Html.Raw(Model.Content)
             </div>
+
+            @* Render Code Blocks from Database *@
+            @if (Model.CodeBlocks.Any())
+            {
+                <input type="hidden" id="codeBlocksData" value='@System.Text.Json.JsonSerializer.Serialize(Model.CodeBlocks)' />
+            }
 
             @if (Model.RelatedGuides.Any())
             {
@@ -263,9 +269,92 @@
     <script>
         // Highlight all code blocks on page load
         document.addEventListener('DOMContentLoaded', function() {
+            renderCodeBlocksFromDatabase();
             Prism.highlightAll();
             addCopyButtonsToCodeBlocks();
         });
+
+        // Render code blocks from database
+        function renderCodeBlocksFromDatabase() {
+            const codeBlocksInput = document.getElementById('codeBlocksData');
+            if (!codeBlocksInput) return;
+
+            try {
+                const codeBlocks = JSON.parse(codeBlocksInput.value);
+                if (!codeBlocks || codeBlocks.length === 0) return;
+
+                const content = document.getElementById('guideContent');
+                if (!content) return;
+
+                // Find placeholders and replace with actual code blocks
+                codeBlocks.forEach(function(block) {
+                    const placeholder = content.querySelector('[data-code-id="' + block.BlockId + '"]');
+                    if (placeholder) {
+                        // Replace placeholder with actual code block from DB
+                        const translations = JSON.parse(block.Translations);
+                        placeholder.innerHTML = renderCodeBlock(block.BlockId, translations);
+                    }
+                });
+            } catch (e) {
+                console.error('Error rendering code blocks:', e);
+            }
+        }
+
+        // Render a code block with multiple languages
+        function renderCodeBlock(blockId, translations) {
+            if (!translations || Object.keys(translations).length === 0) {
+                return '';
+            }
+
+            let html = '<div class="code-tabs">';
+            let contentHtml = '';
+            let first = true;
+
+            for (const [lang, code] of Object.entries(translations)) {
+                const displayName = getLanguageDisplayName(lang);
+                
+                // Tab button
+                html += '<button type="button" class="code-tab' + (first ? ' active' : '') + '" ';
+                html += 'data-lang="' + lang + '" ';
+                html += 'onclick="switchCodeTab(\'' + blockId + '\', \'' + lang + '\')">';
+                html += displayName + '</button>';
+
+                // Code content
+                contentHtml += '<div class="code-content" data-lang="' + lang + '" ';
+                contentHtml += 'style="display: ' + (first ? 'block' : 'none') + ';">';
+                contentHtml += '<pre style="margin: 0;"><code class="language-' + lang + '">';
+                contentHtml += escapeHtml(code);
+                contentHtml += '</code></pre></div>';
+
+                first = false;
+            }
+
+            html += '</div>' + contentHtml;
+            return html;
+        }
+
+        // Get language display name
+        function getLanguageDisplayName(lang) {
+            const names = {
+                'javascript': 'JavaScript', 'python': 'Python', 'java': 'Java',
+                'csharp': 'C#', 'cpp': 'C++', 'c': 'C', 'go': 'Go', 'rust': 'Rust',
+                'php': 'PHP', 'ruby': 'Ruby', 'swift': 'Swift', 'kotlin': 'Kotlin',
+                'typescript': 'TypeScript', 'dart': 'Dart', 'scala': 'Scala',
+                'r': 'R', 'perl': 'Perl', 'lua': 'Lua', 'haskell': 'Haskell',
+                'elixir': 'Elixir', 'clojure': 'Clojure', 'fsharp': 'F#',
+                'objectivec': 'Objective-C', 'sql': 'SQL', 'html': 'HTML',
+                'css': 'CSS', 'bash': 'Bash/Shell', 'powershell': 'PowerShell',
+                'json': 'JSON', 'yaml': 'YAML', 'xml': 'XML'
+            };
+            return names[lang] || lang.toUpperCase();
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         // Switch Code Tab (for multi-language code blocks)
         function switchCodeTab(codeId, language) {

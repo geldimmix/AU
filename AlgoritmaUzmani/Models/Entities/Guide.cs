@@ -76,6 +76,7 @@ public class Guide
     public ICollection<GuideSeoTag> GuideSeoTags { get; set; } = new List<GuideSeoTag>();
     public ICollection<RelatedGuide> RelatedGuides { get; set; } = new List<RelatedGuide>();
     public ICollection<RelatedGuide> RelatedToGuides { get; set; } = new List<RelatedGuide>();
+    public ICollection<CodeBlock> CodeBlocks { get; set; } = new List<CodeBlock>();
 }
 
 

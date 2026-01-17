@@ -375,6 +375,49 @@ public class GuideService : IGuideService
         return guides;
     }
 
+    public async Task SaveCodeBlocksAsync<T>(int guideId, List<T> codeBlocks) where T : class
+    {
+        // Remove existing code blocks for this guide
+        var existing = await _context.CodeBlocks
+            .Where(cb => cb.GuideId == guideId)
+            .ToListAsync();
+        _context.CodeBlocks.RemoveRange(existing);
+
+        // Add new code blocks
+        foreach (var block in codeBlocks)
+        {
+            var blockId = block.GetType().GetProperty("BlockId")?.GetValue(block) as string ?? Guid.NewGuid().ToString();
+            var sourceLanguage = block.GetType().GetProperty("SourceLanguage")?.GetValue(block) as string ?? "javascript";
+            var sourceCode = block.GetType().GetProperty("SourceCode")?.GetValue(block) as string ?? "";
+            var translations = block.GetType().GetProperty("Translations")?.GetValue(block) as Dictionary<string, string> ?? new();
+            var displayOrder = (int)(block.GetType().GetProperty("DisplayOrder")?.GetValue(block) ?? 0);
+
+            var codeBlock = new CodeBlock
+            {
+                GuideId = guideId,
+                BlockId = blockId,
+                SourceLanguage = sourceLanguage,
+                SourceCode = sourceCode,
+                Translations = System.Text.Json.JsonSerializer.Serialize(translations),
+                DisplayOrder = displayOrder,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.CodeBlocks.Add(codeBlock);
+        }
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveByPrefixAsync($"{CachePrefix}{guideId}");
+    }
+
+    public async Task<List<CodeBlock>> GetCodeBlocksByGuideIdAsync(int guideId)
+    {
+        return await _context.CodeBlocks
+            .Where(cb => cb.GuideId == guideId)
+            .OrderBy(cb => cb.DisplayOrder)
+            .ToListAsync();
+    }
+
     private static string? TruncateString(string? value, int maxLength)
     {
         if (string.IsNullOrEmpty(value)) return value;

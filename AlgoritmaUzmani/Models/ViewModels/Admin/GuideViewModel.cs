@@ -86,6 +86,9 @@ public class GuideViewModel
     [Display(Name = "İlgili Rehberler")]
     public List<int> RelatedGuideIds { get; set; } = new();
 
+    // Code Blocks (JSON string from frontend)
+    public string? CodeBlocksJson { get; set; }
+
     // Select Lists
     public SelectList? Categories { get; set; }
     public SelectList? Tags { get; set; }

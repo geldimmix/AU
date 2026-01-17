@@ -21,6 +21,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<StaticPage> StaticPages => Set<StaticPage>();
     public DbSet<VisitorLog> VisitorLogs => Set<VisitorLog>();
     public DbSet<SiteSetting> SiteSettings => Set<SiteSetting>();
+    public DbSet<CodeBlock> CodeBlocks => Set<CodeBlock>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -126,6 +127,19 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<SiteSetting>(entity =>
         {
             entity.HasIndex(e => e.Key).IsUnique();
+        });
+
+        // CodeBlock
+        modelBuilder.Entity<CodeBlock>(entity =>
+        {
+            entity.HasIndex(e => e.GuideId);
+            entity.HasIndex(e => new { e.GuideId, e.BlockId }).IsUnique();
+            entity.HasIndex(e => new { e.GuideId, e.DisplayOrder });
+
+            entity.HasOne(e => e.Guide)
+                .WithMany(g => g.CodeBlocks)
+                .HasForeignKey(e => e.GuideId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

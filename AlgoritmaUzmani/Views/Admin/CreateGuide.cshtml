@@ -6,6 +6,9 @@
 
 <form asp-action="CreateGuide" method="post" enctype="multipart/form-data" id="guideForm">
     @Html.AntiForgeryToken()
+    
+    <!-- Hidden field for code blocks JSON -->
+    <input type="hidden" asp-for="CodeBlocksJson" id="CodeBlocksJson" />
 
     <div style="display: grid; grid-template-columns: 1fr 350px; gap: 1.5rem;">
         <!-- Main Content -->
@@ -335,10 +338,21 @@
                     <option value="swift">Swift</option>
                     <option value="kotlin">Kotlin</option>
                     <option value="typescript">TypeScript</option>
+                    <option value="dart">Dart</option>
+                    <option value="scala">Scala</option>
+                    <option value="r">R</option>
+                    <option value="perl">Perl</option>
+                    <option value="lua">Lua</option>
+                    <option value="haskell">Haskell</option>
+                    <option value="elixir">Elixir</option>
+                    <option value="clojure">Clojure</option>
+                    <option value="fsharp">F#</option>
+                    <option value="objectivec">Objective-C</option>
                     <option value="sql">SQL</option>
                     <option value="html">HTML</option>
                     <option value="css">CSS</option>
-                    <option value="bash">Bash</option>
+                    <option value="bash">Bash/Shell</option>
+                    <option value="powershell">PowerShell</option>
                     <option value="json">JSON</option>
                     <option value="yaml">YAML</option>
                     <option value="xml">XML</option>
@@ -361,25 +375,44 @@
 
             <div id="multiLangOptions" style="display: none;">
                 <div class="form-group">
-                    <label class="form-label">Çevrilecek Diller (Ctrl+Click ile çoklu seçim)</label>
-                    <select id="targetLanguages" class="form-control" multiple style="min-height: 120px;">
-                        <option value="javascript">JavaScript</option>
-                        <option value="python">Python</option>
-                        <option value="java">Java</option>
-                        <option value="csharp">C#</option>
-                        <option value="cpp">C++</option>
-                        <option value="go">Go</option>
-                        <option value="rust">Rust</option>
-                        <option value="php">PHP</option>
-                        <option value="ruby">Ruby</option>
-                        <option value="swift">Swift</option>
-                        <option value="kotlin">Kotlin</option>
-                        <option value="typescript">TypeScript</option>
+                    <label class="form-label">
+                        Çevrilecek Diller 
+                        <small class="text-muted">(Ctrl+Click ile seçimi değiştir, varsayılan hepsi seçili)</small>
+                    </label>
+                    <select id="targetLanguages" class="form-control" multiple style="min-height: 200px;">
+                        <option value="javascript" selected>JavaScript</option>
+                        <option value="python" selected>Python</option>
+                        <option value="java" selected>Java</option>
+                        <option value="csharp" selected>C#</option>
+                        <option value="cpp" selected>C++</option>
+                        <option value="c" selected>C</option>
+                        <option value="go" selected>Go</option>
+                        <option value="rust" selected>Rust</option>
+                        <option value="php" selected>PHP</option>
+                        <option value="ruby" selected>Ruby</option>
+                        <option value="swift" selected>Swift</option>
+                        <option value="kotlin" selected>Kotlin</option>
+                        <option value="typescript" selected>TypeScript</option>
+                        <option value="dart" selected>Dart</option>
+                        <option value="scala" selected>Scala</option>
+                        <option value="r" selected>R</option>
+                        <option value="perl" selected>Perl</option>
+                        <option value="lua" selected>Lua</option>
+                        <option value="haskell" selected>Haskell</option>
+                        <option value="elixir" selected>Elixir</option>
                     </select>
+                    <div class="form-hint" style="margin-top: 0.5rem;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="selectAllLanguages()">
+                            <i class="fas fa-check-double"></i> Tümünü Seç
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="deselectAllLanguages()">
+                            <i class="fas fa-times"></i> Tümünü Kaldır
+                        </button>
+                    </div>
                 </div>
                 
                 <button type="button" class="btn btn-primary" onclick="translateCode()" id="btnTranslateCode">
-                    <i class="fas fa-language"></i> Kodu Çevir
+                    <i class="fas fa-language"></i> Tüm Dillere Çevir
                 </button>
                 
                 <div id="translationProgress" style="display: none; margin-top: 1rem; padding: 1rem; background: #f1f5f9; border-radius: 0.5rem;">
@@ -457,6 +490,7 @@
     // Code Editor Variables
     let currentCodeTranslations = {};
     let currentCodeLanguage = 'javascript';
+    let codeBlocksData = []; // Stores all code blocks with translations
 
     // Open Code Editor Modal
     function openCodeEditor() {
@@ -551,12 +585,24 @@
             return;
         }
 
+        const codeId = 'code-' + Date.now();
         let html = '';
+
+        // Save to codeBlocksData array for backend
+        const codeBlockData = {
+            blockId: codeId,
+            sourceLanguage: lang,
+            sourceCode: code,
+            translations: enableMulti && Object.keys(currentCodeTranslations).length > 0 
+                ? currentCodeTranslations 
+                : { [lang]: code },
+            displayOrder: codeBlocksData.length
+        };
+        codeBlocksData.push(codeBlockData);
 
         if (enableMulti && Object.keys(currentCodeTranslations).length > 0) {
             // Multi-language code block with tabs
-            const codeId = 'code-' + Date.now();
-            html = '<div class="code-block-multilang" data-code-id="' + codeId + '" style="margin: 1.5rem 0; border: 1px solid #e2e8f0; border-radius: 0.5rem; overflow: hidden;">';
+            html = '<div class="code-block-multilang" data-code-id="' + codeId + '" data-block-idx="' + (codeBlocksData.length - 1) + '" style="margin: 1.5rem 0; border: 1px solid #e2e8f0; border-radius: 0.5rem; overflow: hidden;">';
             
             // Language tabs
             html += '<div class="code-tabs" style="display: flex; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">';
@@ -587,9 +633,10 @@
             html += '</div><p></p>';
         } else {
             // Single language code block
-            html = '<pre><code class="language-' + lang + '">';
+            html = '<div class="code-block-single" data-code-id="' + codeId + '" data-block-idx="' + (codeBlocksData.length - 1) + '">';
+            html += '<pre><code class="language-' + lang + '">';
             html += escapeHtml(code);
-            html += '</code></pre><p></p>';
+            html += '</code></pre></div><p></p>';
         }
 
         const editor = currentEditor === 'tr' ? 
@@ -627,6 +674,17 @@
         });
     }
 
+    // Select/Deselect All Languages
+    function selectAllLanguages() {
+        const select = document.getElementById('targetLanguages');
+        Array.from(select.options).forEach(opt => opt.selected = true);
+    }
+
+    function deselectAllLanguages() {
+        const select = document.getElementById('targetLanguages');
+        Array.from(select.options).forEach(opt => opt.selected = false);
+    }
+
     // Get Language Display Name
     function getLanguageDisplayName(lang) {
         const names = {
@@ -643,12 +701,24 @@
             'swift': 'Swift',
             'kotlin': 'Kotlin',
             'typescript': 'TypeScript',
+            'dart': 'Dart',
+            'scala': 'Scala',
+            'r': 'R',
+            'perl': 'Perl',
+            'lua': 'Lua',
+            'haskell': 'Haskell',
+            'elixir': 'Elixir',
+            'clojure': 'Clojure',
+            'fsharp': 'F#',
+            'objectivec': 'Objective-C',
             'sql': 'SQL',
             'html': 'HTML',
             'css': 'CSS',
-            'bash': 'Bash',
+            'bash': 'Bash/Shell',
+            'powershell': 'PowerShell',
             'json': 'JSON',
-            'yaml': 'YAML'
+            'yaml': 'YAML',
+            'xml': 'XML'
         };
         return names[lang] || lang.toUpperCase();
     }
@@ -767,10 +837,15 @@
         document.getElementById('metaEnCount').textContent = 160 - this.value.length;
     });
 
-    // Form submit - copy editor content
+    // Form submit - copy editor content and code blocks
     document.getElementById('guideForm').addEventListener('submit', function(e) {
         document.getElementById('ContentTr').value = document.getElementById('editorTr').innerHTML;
         document.getElementById('ContentEn').value = document.getElementById('editorEn').innerHTML;
+        
+        // Save code blocks as JSON
+        if (codeBlocksData.length > 0) {
+            document.getElementById('CodeBlocksJson').value = JSON.stringify(codeBlocksData);
+        }
     });
 
     // Load existing content
