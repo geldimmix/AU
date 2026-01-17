@@ -492,6 +492,24 @@
         document.getElementById('metaEnCount').textContent = 160 - this.value.length;
     });
 
+    // Handle paste events to prevent HTML escape issues
+    document.getElementById('editorTr').addEventListener('paste', function(e) {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text/html') || 
+                     (e.clipboardData || window.clipboardData).getData('text');
+        
+        // Use execCommand to maintain editor state
+        document.execCommand('insertHTML', false, text);
+    });
+
+    document.getElementById('editorEn').addEventListener('paste', function(e) {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text/html') || 
+                     (e.clipboardData || window.clipboardData).getData('text');
+        
+        document.execCommand('insertHTML', false, text);
+    });
+
     // Form submit - copy editor content
     document.getElementById('guideForm').addEventListener('submit', function(e) {
         document.getElementById('ContentTr').value = document.getElementById('editorTr').innerHTML;
