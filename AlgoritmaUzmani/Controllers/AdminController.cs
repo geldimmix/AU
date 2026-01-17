@@ -964,64 +964,6 @@ public class AdminController : Controller
 
     #endregion
 
-    #region HTML Decode Utility
-
-    [HttpPost("fix-html-encoding")]
-    [Authorize]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> FixHtmlEncoding()
-    {
-        try
-        {
-            var guides = await _guideService.GetAllAsync(false);
-            int fixedCount = 0;
-
-            foreach (var guide in guides)
-            {
-                bool needsUpdate = false;
-
-                // Decode HTML entities in Turkish content
-                if (!string.IsNullOrEmpty(guide.ContentTr))
-                {
-                    var decoded = System.Net.WebUtility.HtmlDecode(guide.ContentTr);
-                    if (decoded != guide.ContentTr)
-                    {
-                        guide.ContentTr = decoded;
-                        needsUpdate = true;
-                    }
-                }
-
-                // Decode HTML entities in English content
-                if (!string.IsNullOrEmpty(guide.ContentEn))
-                {
-                    var decoded = System.Net.WebUtility.HtmlDecode(guide.ContentEn);
-                    if (decoded != guide.ContentEn)
-                    {
-                        guide.ContentEn = decoded;
-                        needsUpdate = true;
-                    }
-                }
-
-                if (needsUpdate)
-                {
-                    await _guideService.UpdateAsync(guide);
-                    fixedCount++;
-                }
-            }
-
-            TempData["Success"] = $"{fixedCount} rehberin HTML kodlaması düzeltildi";
-            return RedirectToAction(nameof(Dashboard));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "HTML encoding fix error");
-            TempData["Error"] = "HTML düzeltme sırasında hata oluştu: " + ex.Message;
-            return RedirectToAction(nameof(Dashboard));
-        }
-    }
-
-    #endregion
-
     #region Helpers
 
     private async Task PopulateGuideSelectLists(GuideViewModel model, int? excludeGuideId = null)

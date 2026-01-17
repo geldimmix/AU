@@ -368,7 +368,7 @@
             </header>
 
             <div id="guideContent">
-                @Html.Raw(Model.Content)
+                @Html.Raw(System.Net.WebUtility.HtmlDecode(Model.Content))
             </div>
 
             @* Render Code Blocks from Database *@
