@@ -720,7 +720,7 @@
                 html += 'style="display: ' + (first ? 'block' : 'none') + ';">';
                 html += '<pre class="line-numbers" style="margin: 0;" data-start="1">';
                 html += '<code class="language-' + language + '">';
-                html += escapeHtml(translation);
+                html += translation.replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 html += '</code></pre></div>';
                 first = false;
             }
@@ -731,7 +731,7 @@
             html = '<div class="code-block-single" data-code-id="' + codeId + '" data-block-idx="' + (codeBlocksData.length - 1) + '">';
             html += '<pre class="line-numbers" data-start="1">';
             html += '<code class="language-' + lang + '">';
-            html += escapeHtml(code);
+            html += code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
             html += '</code></pre></div><p></p>';
         }
 

@@ -465,10 +465,7 @@
     <script>
         // Highlight all code blocks on page load
         document.addEventListener('DOMContentLoaded', function() {
-            renderCodeBlocksFromDatabase();
-            Prism.highlightAll();
-            
-            // Configure Prism plugins
+            // Configure Prism plugins first
             if (typeof Prism !== 'undefined') {
                 // Normalize whitespace
                 Prism.plugins.NormalizeWhitespace.setDefaults({
@@ -478,7 +475,53 @@
                     'right-trim': true
                 });
             }
+
+            // Fix old code blocks without language class
+            fixOldCodeBlocks();
+
+            // Render code blocks from DB
+            renderCodeBlocksFromDatabase();
+            
+            // Highlight after DOM updates
+            setTimeout(function() {
+                if (typeof Prism !== 'undefined') {
+                    Prism.highlightAll();
+                    console.log('Prism.js highlighting completed');
+                } else {
+                    console.error('Prism.js not loaded!');
+                }
+            }, 100);
         });
+
+        // Fix old code blocks that don't have language-* class
+        function fixOldCodeBlocks() {
+            document.querySelectorAll('pre code').forEach(function(codeElement) {
+                // Check if already has a language class
+                const hasLanguageClass = Array.from(codeElement.classList).some(cls => cls.startsWith('language-'));
+                
+                if (!hasLanguageClass) {
+                    // Try to detect language or default to javascript
+                    const text = codeElement.textContent;
+                    let detectedLang = 'javascript';
+                    
+                    // Simple language detection
+                    if (text.includes('def ') && text.includes(':')) detectedLang = 'python';
+                    else if (text.includes('struct ') && text.includes(';')) detectedLang = 'c';
+                    else if (text.includes('class ') && text.includes('public ') && text.includes('{')) detectedLang = 'java';
+                    else if (text.includes('func ') && text.includes('->')) detectedLang = 'go';
+                    else if (text.includes('<?php')) detectedLang = 'php';
+                    else if (text.includes('SELECT ') || text.includes('FROM ')) detectedLang = 'sql';
+                    
+                    codeElement.className = 'language-' + detectedLang;
+                    
+                    // Add line-numbers to pre
+                    if (!codeElement.parentElement.classList.contains('line-numbers')) {
+                        codeElement.parentElement.classList.add('line-numbers');
+                        codeElement.parentElement.setAttribute('data-start', '1');
+                    }
+                }
+            });
+        }
 
         // Render code blocks from database
         function renderCodeBlocksFromDatabase() {
@@ -499,6 +542,13 @@
                         // Replace placeholder with actual code block from DB
                         const translations = JSON.parse(block.Translations);
                         placeholder.innerHTML = renderCodeBlock(block.BlockId, translations);
+                        
+                        // Highlight this specific block
+                        setTimeout(function() {
+                            placeholder.querySelectorAll('code').forEach(function(code) {
+                                Prism.highlightElement(code);
+                            });
+                        }, 50);
                     }
                 });
             } catch (e) {
@@ -535,7 +585,7 @@
                 
                 // Code element with language class
                 contentHtml += '<code class="language-' + lang + '">';
-                contentHtml += escapeHtml(code);
+                contentHtml += code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 contentHtml += '</code></pre></div>';
 
                 first = false;
@@ -580,15 +630,21 @@
             });
 
             // Update content
+            let visibleContent = null;
             container.querySelectorAll('.code-content').forEach(content => {
-                content.style.display = 
-                    content.getAttribute('data-lang') === language ? 'block' : 'none';
+                const isVisible = content.getAttribute('data-lang') === language;
+                content.style.display = isVisible ? 'block' : 'none';
+                if (isVisible) visibleContent = content;
             });
 
-            // Re-highlight the visible code
-            setTimeout(() => {
-                Prism.highlightAll();
-            }, 50);
+            // Re-highlight only the visible code for better performance
+            if (visibleContent) {
+                setTimeout(() => {
+                    visibleContent.querySelectorAll('code').forEach(function(code) {
+                        Prism.highlightElement(code);
+                    });
+                }, 50);
+            }
         }
 
     </script>
