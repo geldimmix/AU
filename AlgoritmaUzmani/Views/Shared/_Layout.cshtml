@@ -4,9 +4,20 @@
     var isEnglish = language == "en";
     var siteName = isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı";
     
-    var googleAnalytics = await SiteSettingService.GetValueAsync("google_analytics");
-    var googleTagManager = await SiteSettingService.GetValueAsync("google_tag_manager");
-    var headerScripts = await SiteSettingService.GetHeaderScriptsAsync();
+    string googleAnalytics = "";
+    string googleTagManager = "";
+    string headerScripts = "";
+    
+    try
+    {
+        googleAnalytics = await SiteSettingService.GetValueAsync("google_analytics") ?? "";
+        googleTagManager = await SiteSettingService.GetValueAsync("google_tag_manager") ?? "";
+        headerScripts = await SiteSettingService.GetHeaderScriptsAsync() ?? "";
+    }
+    catch (Exception)
+    {
+        // Site settings servisi başarısız olsa bile sayfa render edilsin
+    }
 }
 <!DOCTYPE html>
 <html lang="@language">
