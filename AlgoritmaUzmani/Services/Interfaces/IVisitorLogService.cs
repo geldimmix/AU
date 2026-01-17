@@ -16,3 +16,5 @@ public interface IVisitorLogService
     Task CleanupOldLogsAsync(int daysToKeep = 90);
 }
 
+
+

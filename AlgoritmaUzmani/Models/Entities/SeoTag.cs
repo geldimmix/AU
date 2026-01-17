@@ -22,3 +22,5 @@ public class SeoTag
     public ICollection<GuideSeoTag> GuideSeoTags { get; set; } = new List<GuideSeoTag>();
 }
 
+
+

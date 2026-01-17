@@ -32,3 +32,5 @@ public class GuideDetailViewModel
         : Guide.SummaryTr ?? string.Empty;
 }
 
+
+

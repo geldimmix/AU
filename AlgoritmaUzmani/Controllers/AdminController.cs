@@ -20,6 +20,7 @@ public class AdminController : Controller
     private readonly ISeoTagService _seoTagService;
     private readonly IImageService _imageService;
     private readonly ITranslationService _translationService;
+    private readonly ICodeTranslationService _codeTranslationService;
     private readonly ICacheService _cacheService;
     private readonly IStaticPageService _staticPageService;
     private readonly IVisitorLogService _visitorLogService;
@@ -34,6 +35,7 @@ public class AdminController : Controller
         ISeoTagService seoTagService,
         IImageService imageService,
         ITranslationService translationService,
+        ICodeTranslationService codeTranslationService,
         ICacheService cacheService,
         IStaticPageService staticPageService,
         IVisitorLogService visitorLogService,
@@ -47,6 +49,7 @@ public class AdminController : Controller
         _seoTagService = seoTagService;
         _imageService = imageService;
         _translationService = translationService;
+        _codeTranslationService = codeTranslationService;
         _cacheService = cacheService;
         _staticPageService = staticPageService;
         _visitorLogService = visitorLogService;
@@ -708,6 +711,46 @@ public class AdminController : Controller
 
     #endregion
 
+    #region Code Translation
+
+    [HttpPost("translate-code")]
+    [Authorize]
+    public async Task<IActionResult> TranslateCode([FromBody] CodeTranslationRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.SourceCode))
+            {
+                return Json(new { success = false, error = "Kaynak kod gerekli" });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.SourceLanguage))
+            {
+                return Json(new { success = false, error = "Kaynak dil gerekli" });
+            }
+
+            if (request.TargetLanguages == null || !request.TargetLanguages.Any())
+            {
+                return Json(new { success = false, error = "En az bir hedef dil seçilmeli" });
+            }
+
+            var translations = await _codeTranslationService.TranslateCodeToMultipleLanguagesAsync(
+                request.SourceCode,
+                request.SourceLanguage,
+                request.TargetLanguages
+            );
+
+            return Json(new { success = true, translations });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Code translation error");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    #endregion
+
     #region Cache Management
 
     [HttpPost("clear-cache")]
@@ -756,6 +799,13 @@ public class AdminController : Controller
     {
         public string? Title { get; set; }
         public string? Content { get; set; }
+    }
+
+    public class CodeTranslationRequest
+    {
+        public string SourceCode { get; set; } = string.Empty;
+        public string SourceLanguage { get; set; } = string.Empty;
+        public List<string> TargetLanguages { get; set; } = new();
     }
 
     #endregion

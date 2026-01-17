@@ -55,3 +55,5 @@ GitHub Actions ile otomatik deploy yapılır. `main` branch'e push yapıldığı
 
 MIT License
 
+
+

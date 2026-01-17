@@ -78,3 +78,5 @@ public class Guide
     public ICollection<RelatedGuide> RelatedToGuides { get; set; } = new List<RelatedGuide>();
 }
 
+
+

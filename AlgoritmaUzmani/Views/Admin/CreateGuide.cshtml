@@ -51,7 +51,7 @@
                                 <button type="button" class="editor-btn" onclick="execCmd('insertUnorderedList')" title="Liste"><i class="fas fa-list-ul"></i></button>
                                 <button type="button" class="editor-btn" onclick="execCmd('insertOrderedList')" title="Numaralı Liste"><i class="fas fa-list-ol"></i></button>
                                 <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'blockquote')" title="Alıntı"><i class="fas fa-quote-left"></i></button>
-                                <button type="button" class="editor-btn" onclick="insertCode()" title="Kod Bloğu"><i class="fas fa-code"></i></button>
+                                <button type="button" class="editor-btn" onclick="openCodeEditor()" title="Kod Bloğu (Gelişmiş)"><i class="fas fa-code"></i></button>
                                 <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
                                 <button type="button" class="editor-btn" onclick="insertLink()" title="Link"><i class="fas fa-link"></i></button>
                                 <button type="button" class="editor-btn" onclick="insertImage()" title="Resim"><i class="fas fa-image"></i></button>
@@ -311,7 +311,115 @@
     </div>
 </div>
 
+<!-- Code Editor Modal -->
+<div class="modal-overlay" id="codeModal">
+    <div class="modal" style="max-width: 900px;">
+        <div class="modal-header">
+            <h3 class="modal-title">Kod Bloğu Ekle</h3>
+            <button type="button" class="modal-close" onclick="closeCodeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">Programlama Dili</label>
+                <select id="codeLanguage" class="form-control">
+                    <option value="javascript">JavaScript</option>
+                    <option value="python">Python</option>
+                    <option value="java">Java</option>
+                    <option value="csharp">C#</option>
+                    <option value="cpp">C++</option>
+                    <option value="c">C</option>
+                    <option value="go">Go</option>
+                    <option value="rust">Rust</option>
+                    <option value="php">PHP</option>
+                    <option value="ruby">Ruby</option>
+                    <option value="swift">Swift</option>
+                    <option value="kotlin">Kotlin</option>
+                    <option value="typescript">TypeScript</option>
+                    <option value="sql">SQL</option>
+                    <option value="html">HTML</option>
+                    <option value="css">CSS</option>
+                    <option value="bash">Bash</option>
+                    <option value="json">JSON</option>
+                    <option value="yaml">YAML</option>
+                    <option value="xml">XML</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Kodunuz</label>
+                <textarea id="codeInput" class="form-control" rows="15" 
+                    placeholder="// Kodunuzu buraya yazın..." 
+                    style="font-family: 'Consolas', 'Monaco', monospace; font-size: 14px;"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
+                    <input type="checkbox" id="enableMultiLang" style="margin-right: 0.5rem;">
+                    Çoklu Dil Desteği (Deep Infra ile çeviri)
+                </label>
+            </div>
+
+            <div id="multiLangOptions" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">Çevrilecek Diller (Ctrl+Click ile çoklu seçim)</label>
+                    <select id="targetLanguages" class="form-control" multiple style="min-height: 120px;">
+                        <option value="javascript">JavaScript</option>
+                        <option value="python">Python</option>
+                        <option value="java">Java</option>
+                        <option value="csharp">C#</option>
+                        <option value="cpp">C++</option>
+                        <option value="go">Go</option>
+                        <option value="rust">Rust</option>
+                        <option value="php">PHP</option>
+                        <option value="ruby">Ruby</option>
+                        <option value="swift">Swift</option>
+                        <option value="kotlin">Kotlin</option>
+                        <option value="typescript">TypeScript</option>
+                    </select>
+                </div>
+                
+                <button type="button" class="btn btn-primary" onclick="translateCode()" id="btnTranslateCode">
+                    <i class="fas fa-language"></i> Kodu Çevir
+                </button>
+                
+                <div id="translationProgress" style="display: none; margin-top: 1rem; padding: 1rem; background: #f1f5f9; border-radius: 0.5rem;">
+                    <i class="fas fa-spinner fa-spin"></i> Kodlar çevriliyor, lütfen bekleyin...
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeCodeModal()">İptal</button>
+            <button type="button" class="btn btn-primary" onclick="insertCodeBlock()">
+                <i class="fas fa-plus"></i> Ekle
+            </button>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
+<!-- Prism.js for Code Highlighting -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-c.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-go.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-rust.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-ruby.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-swift.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-kotlin.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+
 <script>
     // Tabs
     document.querySelectorAll('.tab[data-tab]').forEach(tab => {
@@ -346,11 +454,210 @@
         document.execCommand(command, false, value);
     }
 
-    function insertCode() {
-        const code = prompt('Kod bloğu (dil):', 'javascript');
-        if (code !== null) {
-            execCmd('insertHTML', '<pre><code class="language-' + code + '">\n// Kodunuzu buraya yazın\n</code></pre><p></p>');
+    // Code Editor Variables
+    let currentCodeTranslations = {};
+    let currentCodeLanguage = 'javascript';
+
+    // Open Code Editor Modal
+    function openCodeEditor() {
+        currentEditor = 'tr';
+        currentCodeTranslations = {};
+        document.getElementById('codeInput').value = '';
+        document.getElementById('codeLanguage').value = 'javascript';
+        document.getElementById('enableMultiLang').checked = false;
+        document.getElementById('multiLangOptions').style.display = 'none';
+        document.getElementById('codeModal').classList.add('active');
+    }
+
+    // Close Code Editor Modal
+    function closeCodeModal() {
+        document.getElementById('codeModal').classList.remove('active');
+    }
+
+    // Toggle Multi-Language Options
+    document.addEventListener('DOMContentLoaded', function() {
+        const enableMultiLang = document.getElementById('enableMultiLang');
+        if (enableMultiLang) {
+            enableMultiLang.addEventListener('change', function() {
+                document.getElementById('multiLangOptions').style.display = 
+                    this.checked ? 'block' : 'none';
+            });
         }
+    });
+
+    // Translate Code using Deep Infra
+    async function translateCode() {
+        const sourceCode = document.getElementById('codeInput').value;
+        const sourceLang = document.getElementById('codeLanguage').value;
+        const targetLangs = Array.from(document.getElementById('targetLanguages').selectedOptions)
+            .map(opt => opt.value);
+
+        if (!sourceCode.trim()) {
+            alert('Lütfen önce bir kod yazın');
+            return;
+        }
+
+        if (targetLangs.length === 0) {
+            alert('Lütfen en az bir hedef dil seçin');
+            return;
+        }
+
+        const btn = document.getElementById('btnTranslateCode');
+        const progress = document.getElementById('translationProgress');
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Çevriliyor...';
+        progress.style.display = 'block';
+
+        try {
+            const response = await fetch('/admin/translate-code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sourceCode: sourceCode,
+                    sourceLanguage: sourceLang,
+                    targetLanguages: targetLangs
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                currentCodeTranslations = result.translations;
+                currentCodeLanguage = sourceLang;
+                alert('Kod çevirileri başarıyla oluşturuldu! Şimdi "Ekle" butonuna tıklayın.');
+            } else {
+                alert('Hata: ' + result.error);
+            }
+        } catch (e) {
+            alert('Bir hata oluştu: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-language"></i> Kodu Çevir';
+            progress.style.display = 'none';
+        }
+    }
+
+    // Insert Code Block into Editor
+    function insertCodeBlock() {
+        const code = document.getElementById('codeInput').value;
+        const lang = document.getElementById('codeLanguage').value;
+        const enableMulti = document.getElementById('enableMultiLang').checked;
+
+        if (!code.trim()) {
+            alert('Lütfen kod yazın');
+            return;
+        }
+
+        let html = '';
+
+        if (enableMulti && Object.keys(currentCodeTranslations).length > 0) {
+            // Multi-language code block with tabs
+            const codeId = 'code-' + Date.now();
+            html = '<div class="code-block-multilang" data-code-id="' + codeId + '" style="margin: 1.5rem 0; border: 1px solid #e2e8f0; border-radius: 0.5rem; overflow: hidden;">';
+            
+            // Language tabs
+            html += '<div class="code-tabs" style="display: flex; background: #f8fafc; border-bottom: 1px solid #e2e8f0;">';
+            let first = true;
+            for (const [language, translation] of Object.entries(currentCodeTranslations)) {
+                const displayName = getLanguageDisplayName(language);
+                html += '<button type="button" class="code-tab ' + (first ? 'active' : '') + '" ';
+                html += 'data-lang="' + language + '" ';
+                html += 'onclick="switchCodeTab(\'' + codeId + '\', \'' + language + '\')" ';
+                html += 'style="padding: 0.75rem 1.25rem; border: none; background: ' + (first ? '#fff' : 'transparent') + '; ';
+                html += 'cursor: pointer; font-weight: 500; color: ' + (first ? '#2563eb' : '#64748b') + ';">';
+                html += displayName + '</button>';
+                first = false;
+            }
+            html += '</div>';
+
+            // Code contents
+            first = true;
+            for (const [language, translation] of Object.entries(currentCodeTranslations)) {
+                html += '<div class="code-content" data-lang="' + language + '" ';
+                html += 'style="display: ' + (first ? 'block' : 'none') + ';">';
+                html += '<pre style="margin: 0;"><code class="language-' + language + '">';
+                html += escapeHtml(translation);
+                html += '</code></pre></div>';
+                first = false;
+            }
+
+            html += '</div><p></p>';
+        } else {
+            // Single language code block
+            html = '<pre><code class="language-' + lang + '">';
+            html += escapeHtml(code);
+            html += '</code></pre><p></p>';
+        }
+
+        const editor = currentEditor === 'tr' ? 
+            document.getElementById('editorTr') : 
+            document.getElementById('editorEn');
+        
+        editor.focus();
+        document.execCommand('insertHTML', false, html);
+
+        // Highlight the code
+        setTimeout(() => {
+            Prism.highlightAll();
+        }, 100);
+
+        closeCodeModal();
+    }
+
+    // Switch Code Tab
+    function switchCodeTab(codeId, language) {
+        const container = document.querySelector('[data-code-id="' + codeId + '"]');
+        if (!container) return;
+
+        // Update tabs
+        container.querySelectorAll('.code-tab').forEach(tab => {
+            const isActive = tab.getAttribute('data-lang') === language;
+            tab.classList.toggle('active', isActive);
+            tab.style.background = isActive ? '#fff' : 'transparent';
+            tab.style.color = isActive ? '#2563eb' : '#64748b';
+        });
+
+        // Update content
+        container.querySelectorAll('.code-content').forEach(content => {
+            content.style.display = 
+                content.getAttribute('data-lang') === language ? 'block' : 'none';
+        });
+    }
+
+    // Get Language Display Name
+    function getLanguageDisplayName(lang) {
+        const names = {
+            'javascript': 'JavaScript',
+            'python': 'Python',
+            'java': 'Java',
+            'csharp': 'C#',
+            'cpp': 'C++',
+            'c': 'C',
+            'go': 'Go',
+            'rust': 'Rust',
+            'php': 'PHP',
+            'ruby': 'Ruby',
+            'swift': 'Swift',
+            'kotlin': 'Kotlin',
+            'typescript': 'TypeScript',
+            'sql': 'SQL',
+            'html': 'HTML',
+            'css': 'CSS',
+            'bash': 'Bash',
+            'json': 'JSON',
+            'yaml': 'YAML'
+        };
+        return names[lang] || lang.toUpperCase();
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     function insertLink() {

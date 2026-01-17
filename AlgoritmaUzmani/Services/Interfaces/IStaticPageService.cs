@@ -10,3 +10,5 @@ public interface IStaticPageService
     Task<StaticPage> UpdateAsync(StaticPage page);
 }
 
+
+

@@ -34,6 +34,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 
 // HTTP Client for translation service
 builder.Services.AddHttpClient<ITranslationService, TranslationService>();
+builder.Services.AddHttpClient<ICodeTranslationService, CodeTranslationService>();
 
 // Register Services
 builder.Services.AddScoped<ICategoryService, CategoryService>();

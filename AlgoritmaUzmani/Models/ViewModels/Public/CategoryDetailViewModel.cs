@@ -10,3 +10,5 @@ public class CategoryDetailViewModel
     public string Language { get; set; } = "tr";
 }
 
+
+

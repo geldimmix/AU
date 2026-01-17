@@ -97,3 +97,5 @@ public class GuideViewModel
     public int ViewCount { get; set; }
 }
 
+
+

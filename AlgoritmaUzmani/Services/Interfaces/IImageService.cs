@@ -10,3 +10,5 @@ public interface IImageService
     bool IsValidImage(IFormFile file);
 }
 
+
+

@@ -34,3 +34,5 @@ public class StaticPage
     public DateTime? UpdatedAt { get; set; }
 }
 
+
+
