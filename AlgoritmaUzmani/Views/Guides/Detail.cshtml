@@ -10,6 +10,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
     <!-- Prism.js for Code Highlighting -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <!-- Prism.js Plugins -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-highlight/prism-line-highlight.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/match-braces/prism-match-braces.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/command-line/prism-command-line.min.css" rel="stylesheet" />
     <style>
         .guide-header {
             margin-bottom: 2rem;
@@ -84,36 +90,7 @@
         .code-content pre code {
             font-family: 'Fira Code', 'Consolas', 'Monaco', monospace !important;
             font-size: 0.875rem;
-            line-height: 1.6;
-        }
-
-        /* Copy Button for Code Blocks */
-        .code-copy-btn {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            padding: 0.375rem 0.75rem;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid #e2e8f0;
-            border-radius: 0.375rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: #64748b;
-            cursor: pointer;
-            transition: all 0.2s;
-            z-index: 10;
-        }
-
-        .code-copy-btn:hover {
-            background: #fff;
-            color: #2563eb;
-            border-color: #2563eb;
-        }
-
-        .code-copy-btn.copied {
-            background: #10b981;
-            color: #fff;
-            border-color: #10b981;
+            line-height: 1.7;
         }
 
         /* Regular code blocks */
@@ -121,11 +98,205 @@
             position: relative;
             margin: 1.5rem 0;
             border-radius: 0.75rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
         }
 
         .guide-content pre code {
             font-family: 'Fira Code', 'Consolas', 'Monaco', monospace !important;
+            font-size: 0.875rem;
+        }
+
+        /* Prism.js Line Numbers Styling */
+        .line-numbers .line-numbers-rows {
+            border-right: 1px solid #4a5568;
+            background: #2d3748;
+        }
+
+        .line-numbers-rows > span:before {
+            color: #718096;
+            font-weight: 500;
+        }
+
+        /* Prism.js Toolbar Styling */
+        div.code-toolbar {
+            position: relative;
+            margin: 1.5rem 0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        div.code-toolbar > .toolbar {
+            opacity: 1;
+            right: 0.5rem;
+            top: 0.5rem;
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.5rem;
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item > button,
+        div.code-toolbar > .toolbar > .toolbar-item > span,
+        div.code-toolbar > .toolbar > .toolbar-item > a {
+            background: rgba(255, 255, 255, 0.95);
+            color: #4a5568;
+            padding: 0.5rem 0.875rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item > button:hover,
+        div.code-toolbar > .toolbar > .toolbar-item > span:hover,
+        div.code-toolbar > .toolbar > .toolbar-item > a:hover {
+            background: #fff;
+            color: #2563eb;
+            border-color: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(37,99,235,0.2);
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item > button:focus,
+        div.code-toolbar > .toolbar > .toolbar-item > a:focus {
+            outline: none;
+        }
+
+        /* Show Language Badge */
+        div.code-toolbar > .toolbar .toolbar-item > span.language-label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.5rem 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            cursor: default;
+            box-shadow: 0 2px 8px rgba(102,126,234,0.3);
+        }
+
+        /* Copy Button Success State */
+        div.code-toolbar > .toolbar > .toolbar-item > button.copy-to-clipboard-button {
+            position: relative;
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item > button.copy-to-clipboard-button[data-copy-state="copy-success"] {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        /* Line Highlight */
+        .line-highlight {
+            background: rgba(101, 167, 249, 0.15);
+            background: linear-gradient(to right, rgba(101, 167, 249, 0.15) 70%, rgba(101, 167, 249, 0));
+        }
+
+        .line-highlight:before,
+        .line-highlight[data-end]:after {
+            background-color: #65a7f9;
+            color: white;
+            font-weight: 600;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+        }
+
+        /* Match Braces */
+        .rainbow-braces .token.punctuation.brace-level-1,
+        .rainbow-braces .token.punctuation.brace-level-5,
+        .rainbow-braces .token.punctuation.brace-level-9 {
+            color: #ffd700;
+        }
+
+        .rainbow-braces .token.punctuation.brace-level-2,
+        .rainbow-braces .token.punctuation.brace-level-6,
+        .rainbow-braces .token.punctuation.brace-level-10 {
+            color: #da70d6;
+        }
+
+        .rainbow-braces .token.punctuation.brace-level-3,
+        .rainbow-braces .token.punctuation.brace-level-7,
+        .rainbow-braces .token.punctuation.brace-level-11 {
+            color: #87ceeb;
+        }
+
+        .rainbow-braces .token.punctuation.brace-level-4,
+        .rainbow-braces .token.punctuation.brace-level-8,
+        .rainbow-braces .token.punctuation.brace-level-12 {
+            color: #fa8072;
+        }
+
+        .brace-hover {
+            background: rgba(255, 215, 0, 0.2);
+            outline: 1px solid rgba(255, 215, 0, 0.5);
+            outline-offset: 1px;
+        }
+
+        /* Command Line */
+        .command-line-prompt {
+            border-right: 1px solid #4a5568;
+        }
+
+        .command-line-prompt > span:before {
+            color: #48bb78;
+            font-weight: 600;
+        }
+
+        /* Smooth Scrollbar for Code */
+        pre[class*="language-"]::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        pre[class*="language-"]::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+
+        pre[class*="language-"]::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+
+        pre[class*="language-"]::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+
+        /* Enhanced Code Block */
+        code[class*="language-"],
+        pre[class*="language-"] {
+            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* Token Enhancements */
+        .token.comment,
+        .token.prolog,
+        .token.doctype,
+        .token.cdata {
+            font-style: italic;
+        }
+
+        .token.namespace {
+            opacity: 0.8;
+        }
+
+        .token.important,
+        .token.bold {
+            font-weight: 700;
+        }
+
+        .token.italic {
+            font-style: italic;
+        }
+
+        .token.entity {
+            cursor: help;
         }
     </style>
 }
@@ -244,8 +415,10 @@
 </div>
 
 @section Scripts {
-    <!-- Prism.js for Code Highlighting -->
+    <!-- Prism.js Core -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    
+    <!-- Prism.js Language Components -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
@@ -259,19 +432,52 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-swift.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-kotlin.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-typescript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-dart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-scala.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-r.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-perl.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-lua.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-haskell.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-elixir.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-clojure.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-fsharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-objectivec.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-powershell.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-yaml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-xml-doc.min.js"></script>
+
+    <!-- Prism.js Plugins -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/show-language/prism-show-language.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/match-braces/prism-match-braces.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autolinker/prism-autolinker.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/command-line/prism-command-line.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/normalize-whitespace/prism-normalize-whitespace.min.js"></script>
 
     <script>
         // Highlight all code blocks on page load
         document.addEventListener('DOMContentLoaded', function() {
             renderCodeBlocksFromDatabase();
             Prism.highlightAll();
-            addCopyButtonsToCodeBlocks();
+            
+            // Configure Prism plugins
+            if (typeof Prism !== 'undefined') {
+                // Normalize whitespace
+                Prism.plugins.NormalizeWhitespace.setDefaults({
+                    'remove-trailing': true,
+                    'remove-indent': true,
+                    'left-trim': true,
+                    'right-trim': true
+                });
+            }
         });
 
         // Render code blocks from database
@@ -319,10 +525,16 @@
                 html += 'onclick="switchCodeTab(\'' + blockId + '\', \'' + lang + '\')">';
                 html += displayName + '</button>';
 
-                // Code content
+                // Code content with Prism.js enhancements
                 contentHtml += '<div class="code-content" data-lang="' + lang + '" ';
                 contentHtml += 'style="display: ' + (first ? 'block' : 'none') + ';">';
-                contentHtml += '<pre style="margin: 0;"><code class="language-' + lang + '">';
+                
+                // Pre element with line numbers and match-braces classes
+                contentHtml += '<pre class="line-numbers match-braces rainbow-braces" style="margin: 0;" ';
+                contentHtml += 'data-start="1">';
+                
+                // Code element with language class
+                contentHtml += '<code class="language-' + lang + '">';
                 contentHtml += escapeHtml(code);
                 contentHtml += '</code></pre></div>';
 
@@ -379,39 +591,6 @@
             }, 50);
         }
 
-        // Add copy buttons to all code blocks
-        function addCopyButtonsToCodeBlocks() {
-            document.querySelectorAll('pre code').forEach(function(codeBlock) {
-                // Check if already has a copy button
-                if (codeBlock.parentElement.querySelector('.code-copy-btn')) return;
-
-                const button = document.createElement('button');
-                button.className = 'code-copy-btn';
-                button.innerHTML = '<i class="fas fa-copy"></i> Kopyala';
-                button.title = 'Kodu kopyala';
-
-                button.addEventListener('click', function() {
-                    const code = codeBlock.textContent;
-                    navigator.clipboard.writeText(code).then(function() {
-                        button.innerHTML = '<i class="fas fa-check"></i> Kopyalandı!';
-                        button.classList.add('copied');
-                        setTimeout(function() {
-                            button.innerHTML = '<i class="fas fa-copy"></i> Kopyala';
-                            button.classList.remove('copied');
-                        }, 2000);
-                    }).catch(function(err) {
-                        console.error('Kopyalama hatası:', err);
-                        button.innerHTML = '<i class="fas fa-times"></i> Hata';
-                        setTimeout(function() {
-                            button.innerHTML = '<i class="fas fa-copy"></i> Kopyala';
-                        }, 2000);
-                    });
-                });
-
-                codeBlock.parentElement.style.position = 'relative';
-                codeBlock.parentElement.appendChild(button);
-            });
-        }
     </script>
 
     <!-- Schema.org structured data for SEO -->
