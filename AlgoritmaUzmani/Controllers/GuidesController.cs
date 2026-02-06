@@ -156,18 +156,16 @@ public class GuidesController : Controller
                 return RedirectPermanent(correctUrl);
             }
 
-            // Increment view count (don't await to improve performance)
-            _ = Task.Run(async () =>
+            // Increment view count - fire and forget but don't block the response
+            // Not awaited intentionally, errors are logged inside the method
+            try
             {
-                try
-                {
-                    await _guideService.IncrementViewCountAsync(guide.Id);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to increment view count for guide {GuideId}", guide.Id);
-                }
-            });
+                _ = _guideService.IncrementViewCountAsync(guide.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to start view count increment for guide {GuideId}", guide.Id);
+            }
 
             var relatedGuides = await _guideService.GetRelatedGuidesAsync(guide.Id);
             var allCategories = await _categoryService.GetAllAsync();

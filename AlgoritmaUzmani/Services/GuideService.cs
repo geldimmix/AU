@@ -405,15 +405,20 @@ public class GuideService : IGuideService
         }
 
         await _context.SaveChangesAsync();
-        await _cache.RemoveByPrefixAsync($"{CachePrefix}{guideId}");
+        await _cache.RemoveByPrefixAsync($"{CachePrefix}codeblocks_{guideId}");
     }
 
     public async Task<List<CodeBlock>> GetCodeBlocksByGuideIdAsync(int guideId)
     {
-        return await _context.CodeBlocks
-            .Where(cb => cb.GuideId == guideId)
-            .OrderBy(cb => cb.DisplayOrder)
-            .ToListAsync();
+        var cacheKey = $"{CachePrefix}codeblocks_{guideId}";
+        return await _cache.GetOrCreateAsync(cacheKey, async () =>
+        {
+            return await _context.CodeBlocks
+                .AsNoTracking()
+                .Where(cb => cb.GuideId == guideId)
+                .OrderBy(cb => cb.DisplayOrder)
+                .ToListAsync();
+        }, TimeSpan.FromMinutes(30));
     }
 
     private static string? TruncateString(string? value, int maxLength)
