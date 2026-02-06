@@ -21,86 +21,78 @@ public class GuideService : IGuideService
     public async Task<List<Guide>> GetAllAsync(bool activeOnly = true)
     {
         var cacheKey = $"{CachePrefix}all_{activeOnly}";
-        var cached = await _cache.GetAsync<List<Guide>>(cacheKey);
-        if (cached != null) return cached;
+        return await _cache.GetOrCreateAsync(cacheKey, async () =>
+        {
+            var query = _context.Guides
+                .AsNoTracking()
+                .Include(g => g.Category)
+                .Include(g => g.GuideTags)
+                    .ThenInclude(gt => gt.Tag)
+                .AsQueryable();
 
-        var query = _context.Guides
-            .Include(g => g.Category)
-            .Include(g => g.GuideTags)
-                .ThenInclude(gt => gt.Tag)
-            .AsQueryable();
+            if (activeOnly)
+                query = query.Where(g => g.IsActive);
 
-        if (activeOnly)
-            query = query.Where(g => g.IsActive);
-
-        var guides = await query
-            .OrderByDescending(g => g.CreatedAt)
-            .ToListAsync();
-
-        await _cache.SetAsync(cacheKey, guides, TimeSpan.FromMinutes(30));
-        return guides;
+            return await query
+                .OrderByDescending(g => g.CreatedAt)
+                .ToListAsync();
+        }, TimeSpan.FromMinutes(30));
     }
 
     public async Task<List<Guide>> GetByCategoryAsync(int categoryId, bool activeOnly = true)
     {
         var cacheKey = $"{CachePrefix}category_{categoryId}_{activeOnly}";
-        var cached = await _cache.GetAsync<List<Guide>>(cacheKey);
-        if (cached != null) return cached;
+        return await _cache.GetOrCreateAsync(cacheKey, async () =>
+        {
+            var query = _context.Guides
+                .AsNoTracking()
+                .Include(g => g.Category)
+                .Include(g => g.GuideTags)
+                    .ThenInclude(gt => gt.Tag)
+                .Where(g => g.CategoryId == categoryId);
 
-        var query = _context.Guides
-            .Include(g => g.Category)
-            .Include(g => g.GuideTags)
-                .ThenInclude(gt => gt.Tag)
-            .Where(g => g.CategoryId == categoryId);
+            if (activeOnly)
+                query = query.Where(g => g.IsActive);
 
-        if (activeOnly)
-            query = query.Where(g => g.IsActive);
-
-        var guides = await query
-            .OrderBy(g => g.DisplayOrder)
-            .ThenByDescending(g => g.CreatedAt)
-            .ToListAsync();
-
-        await _cache.SetAsync(cacheKey, guides, TimeSpan.FromMinutes(30));
-        return guides;
+            return await query
+                .OrderBy(g => g.DisplayOrder)
+                .ThenByDescending(g => g.CreatedAt)
+                .ToListAsync();
+        }, TimeSpan.FromMinutes(30));
     }
 
     public async Task<List<Guide>> GetFeaturedAsync(int count = 5)
     {
         var cacheKey = $"{CachePrefix}featured_{count}";
-        var cached = await _cache.GetAsync<List<Guide>>(cacheKey);
-        if (cached != null) return cached;
-
-        var guides = await _context.Guides
-            .Include(g => g.Category)
-            .Include(g => g.GuideTags)
-                .ThenInclude(gt => gt.Tag)
-            .Where(g => g.IsActive && g.IsFeatured)
-            .OrderByDescending(g => g.CreatedAt)
-            .Take(count)
-            .ToListAsync();
-
-        await _cache.SetAsync(cacheKey, guides, TimeSpan.FromMinutes(30));
-        return guides;
+        return await _cache.GetOrCreateAsync(cacheKey, async () =>
+        {
+            return await _context.Guides
+                .AsNoTracking()
+                .Include(g => g.Category)
+                .Include(g => g.GuideTags)
+                    .ThenInclude(gt => gt.Tag)
+                .Where(g => g.IsActive && g.IsFeatured)
+                .OrderByDescending(g => g.CreatedAt)
+                .Take(count)
+                .ToListAsync();
+        }, TimeSpan.FromMinutes(30));
     }
 
     public async Task<List<Guide>> GetRecentAsync(int count = 10)
     {
         var cacheKey = $"{CachePrefix}recent_{count}";
-        var cached = await _cache.GetAsync<List<Guide>>(cacheKey);
-        if (cached != null) return cached;
-
-        var guides = await _context.Guides
-            .Include(g => g.Category)
-            .Include(g => g.GuideTags)
-                .ThenInclude(gt => gt.Tag)
-            .Where(g => g.IsActive)
-            .OrderByDescending(g => g.CreatedAt)
-            .Take(count)
-            .ToListAsync();
-
-        await _cache.SetAsync(cacheKey, guides, TimeSpan.FromMinutes(30));
-        return guides;
+        return await _cache.GetOrCreateAsync(cacheKey, async () =>
+        {
+            return await _context.Guides
+                .AsNoTracking()
+                .Include(g => g.Category)
+                .Include(g => g.GuideTags)
+                    .ThenInclude(gt => gt.Tag)
+                .Where(g => g.IsActive)
+                .OrderByDescending(g => g.CreatedAt)
+                .Take(count)
+                .ToListAsync();
+        }, TimeSpan.FromMinutes(30));
     }
 
     public async Task<Guide?> GetByIdAsync(int id)
@@ -117,13 +109,17 @@ public class GuideService : IGuideService
     public async Task<Guide?> GetBySlugAsync(string slug, string language = "tr")
     {
         var cacheKey = $"{CachePrefix}slug_{slug}_{language}";
+        
+        // GetOrCreateAsync null dönebilir, bu yüzden özel bir wrapper kullanıyoruz
         var cached = await _cache.GetAsync<Guide>(cacheKey);
         if (cached != null) return cached;
 
+        // Lock mekanizması ile veri çekme
         Guide? guide;
         if (language == "en")
         {
             guide = await _context.Guides
+                .AsNoTracking()
                 .Include(g => g.Category)
                 .Include(g => g.GuideTags)
                     .ThenInclude(gt => gt.Tag)
@@ -131,11 +127,13 @@ public class GuideService : IGuideService
                     .ThenInclude(gs => gs.SeoTag)
                 .Include(g => g.RelatedGuides)
                     .ThenInclude(rg => rg.Related)
+                        .ThenInclude(r => r.Category)
                 .FirstOrDefaultAsync(g => g.SlugEn == slug && g.IsActive);
         }
         else
         {
             guide = await _context.Guides
+                .AsNoTracking()
                 .Include(g => g.Category)
                 .Include(g => g.GuideTags)
                     .ThenInclude(gt => gt.Tag)
@@ -143,6 +141,7 @@ public class GuideService : IGuideService
                     .ThenInclude(gs => gs.SeoTag)
                 .Include(g => g.RelatedGuides)
                     .ThenInclude(rg => rg.Related)
+                        .ThenInclude(r => r.Category)
                 .FirstOrDefaultAsync(g => g.SlugTr == slug && g.IsActive);
         }
 
@@ -168,31 +167,30 @@ public class GuideService : IGuideService
     public async Task<List<Guide>> GetRelatedGuidesAsync(int guideId)
     {
         var cacheKey = $"{CachePrefix}related_{guideId}";
-        var cached = await _cache.GetAsync<List<Guide>>(cacheKey);
-        if (cached != null) return cached;
+        return await _cache.GetOrCreateAsync(cacheKey, async () =>
+        {
+            var relatedIds = await _context.RelatedGuides
+                .AsNoTracking()
+                .Where(rg => rg.GuideId == guideId)
+                .OrderBy(rg => rg.DisplayOrder)
+                .Select(rg => rg.RelatedGuideId)
+                .ToListAsync();
 
-        var relatedIds = await _context.RelatedGuides
-            .Where(rg => rg.GuideId == guideId)
-            .OrderBy(rg => rg.DisplayOrder)
-            .Select(rg => rg.RelatedGuideId)
-            .ToListAsync();
+            var guides = await _context.Guides
+                .AsNoTracking()
+                .Include(g => g.Category)
+                .Include(g => g.GuideTags)
+                    .ThenInclude(gt => gt.Tag)
+                .Where(g => relatedIds.Contains(g.Id) && g.IsActive)
+                .ToListAsync();
 
-        var guides = await _context.Guides
-            .Include(g => g.Category)
-            .Include(g => g.GuideTags)
-                .ThenInclude(gt => gt.Tag)
-            .Where(g => relatedIds.Contains(g.Id) && g.IsActive)
-            .ToListAsync();
-
-        // Preserve order
-        var orderedGuides = relatedIds
-            .Select(id => guides.FirstOrDefault(g => g.Id == id))
-            .Where(g => g != null)
-            .Cast<Guide>()
-            .ToList();
-
-        await _cache.SetAsync(cacheKey, orderedGuides, TimeSpan.FromMinutes(30));
-        return orderedGuides;
+            // Preserve order
+            return relatedIds
+                .Select(id => guides.FirstOrDefault(g => g.Id == id))
+                .Where(g => g != null)
+                .Cast<Guide>()
+                .ToList();
+        }, TimeSpan.FromMinutes(30));
     }
 
     public async Task<Guide> CreateAsync(Guide guide)

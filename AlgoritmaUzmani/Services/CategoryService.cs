@@ -29,22 +29,20 @@ public class CategoryService : ICategoryService
     public async Task<List<Category>> GetAllAsync(bool activeOnly = true)
     {
         var cacheKey = $"{CachePrefix}all_{activeOnly}";
-        var cached = await _cache.GetAsync<List<Category>>(cacheKey);
-        if (cached != null) return cached;
+        return await _cache.GetOrCreateAsync(cacheKey, async () =>
+        {
+            var query = _context.Categories
+                .AsNoTracking()
+                .Include(c => c.Guides)
+                .AsQueryable();
+            
+            if (activeOnly)
+                query = query.Where(c => c.IsActive);
 
-        var query = _context.Categories
-            .Include(c => c.Guides)
-            .AsQueryable();
-        
-        if (activeOnly)
-            query = query.Where(c => c.IsActive);
-
-        var categories = await query
-            .OrderBy(c => c.DisplayOrder)
-            .ToListAsync();
-
-        await _cache.SetAsync(cacheKey, categories, TimeSpan.FromHours(1));
-        return categories;
+            return await query
+                .OrderBy(c => c.DisplayOrder)
+                .ToListAsync();
+        }, TimeSpan.FromHours(1));
     }
 
     public async Task<Category?> GetByIdAsync(int id)
@@ -54,6 +52,7 @@ public class CategoryService : ICategoryService
         if (cached != null) return cached;
 
         var category = await _context.Categories
+            .AsNoTracking()
             .Include(c => c.Guides.Where(g => g.IsActive))
             .FirstOrDefaultAsync(c => c.Id == id);
 
@@ -73,12 +72,14 @@ public class CategoryService : ICategoryService
         if (language == "en")
         {
             category = await _context.Categories
+                .AsNoTracking()
                 .Include(c => c.Guides.Where(g => g.IsActive))
                 .FirstOrDefaultAsync(c => c.SlugEn == slug && c.IsActive);
         }
         else
         {
             category = await _context.Categories
+                .AsNoTracking()
                 .Include(c => c.Guides.Where(g => g.IsActive))
                 .FirstOrDefaultAsync(c => c.SlugTr == slug && c.IsActive);
         }

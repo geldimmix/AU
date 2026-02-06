@@ -6,3 +6,5 @@ public interface ICodeTranslationService
     Task<string> TranslateCodeAsync(string sourceCode, string sourceLanguage, string targetLanguage);
 }
 
+
+
