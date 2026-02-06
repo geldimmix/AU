@@ -64,7 +64,7 @@ builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<IStaticPageService, StaticPageService>();
 builder.Services.AddScoped<ISiteSettingService, SiteSettingService>();
 builder.Services.AddScoped<IVisitorLogService, VisitorLogService>();
-builder.Services.AddSingleton<ICacheService, CacheService>();
+builder.Services.AddScoped<ICacheService, CacheService>();
 
 // Response Compression
 builder.Services.AddResponseCompression(options =>
@@ -74,31 +74,12 @@ builder.Services.AddResponseCompression(options =>
 
 var app = builder.Build();
 
-// Seed Database and warm up cache
+// Seed Database
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await context.Database.MigrateAsync();
     await DbSeeder.SeedAsync(context);
-    
-    // Cache warm-up - ilk istek gelmeden verileri yükle
-    try
-    {
-        var categoryService = scope.ServiceProvider.GetRequiredService<ICategoryService>();
-        var guideService = scope.ServiceProvider.GetRequiredService<IGuideService>();
-        
-        // Kategorileri ve rehberleri önceden yükle
-        await categoryService.GetAllAsync();
-        await guideService.GetFeaturedAsync(3);
-        await guideService.GetRecentAsync(10);
-        await guideService.GetAllAsync();
-        
-        Console.WriteLine("Cache warm-up completed successfully.");
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Cache warm-up failed (non-critical): {ex.Message}");
-    }
 }
 
 // Configure the HTTP request pipeline.
