@@ -2,40 +2,72 @@
 @{
     Layout = "_Layout";
     var isEnglish = Model.Language == "en";
+    ViewData["Title"] = isEnglish ? "Programming Guides - Algorithm Expert" : "Programlama Rehberleri - Algoritma Uzmanı";
 }
 
 <div class="main-layout">
     <!-- Sidebar -->
     <aside class="sidebar">
-        <h2 class="sidebar-title">@(isEnglish ? "CATEGORIES" : "KATEGORİLER")</h2>
-        <ul class="category-list">
-            @foreach (var category in Model.Categories)
-            {
-                var catName = isEnglish && !string.IsNullOrEmpty(category.NameEn) ? category.NameEn : category.NameTr;
-                var catSlug = isEnglish && !string.IsNullOrEmpty(category.SlugEn) ? category.SlugEn : category.SlugTr;
-                <li class="category-item">
-                    <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@catSlug" class="category-link">
-                        <span class="category-icon">@category.Icon</span>
-                        @catName
-                    </a>
-                </li>
-            }
-        </ul>
+        <div class="sidebar-header">
+            <span class="sidebar-header-icon">☰</span>
+            <span class="sidebar-title">@(isEnglish ? "Guide Catalog" : "Rehber Kataloğu")</span>
+        </div>
+        
+        <div class="category-section open">
+            <div class="category-section-title">
+                <span>@(isEnglish ? "Categories" : "Kategoriler")</span>
+                <span class="chevron">▼</span>
+            </div>
+            <ul class="category-list">
+                @foreach (var category in Model.Categories)
+                {
+                    var catName = isEnglish && !string.IsNullOrEmpty(category.NameEn) ? category.NameEn : category.NameTr;
+                    var catSlug = isEnglish && !string.IsNullOrEmpty(category.SlugEn) ? category.SlugEn : category.SlugTr;
+                    var guideCount = category.Guides?.Count(g => g.IsActive) ?? 0;
+                    <li class="category-item">
+                        <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@catSlug" class="category-link">
+                            <span class="category-icon">@category.Icon</span>
+                            <span class="category-name">@catName</span>
+                            <span class="category-count">@guideCount</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
     </aside>
 
     <!-- Content -->
     <main class="content">
         <div class="page-header">
-            <h1 class="page-title">@(isEnglish ? "Programming Guides" : "Programlama Rehberleri")</h1>
-            <p class="page-description">
-                @(isEnglish 
-                    ? "Comprehensive guides on data structures, algorithms, software architecture, and more." 
-                    : "Veri yapıları, algoritmalar, yazılım mimarisi ve daha fazlası hakkında kapsamlı rehberler.")
-            </p>
+            <h1 class="page-title">@(isEnglish ? "Guide Catalog" : "Rehber Kataloğu")</h1>
         </div>
 
+        <!-- Search Section -->
+        <div class="search-section">
+            <label class="search-label">@(isEnglish ? "Search" : "Ara")</label>
+            <div class="search-box">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" 
+                           class="search-input" 
+                           id="searchInput" 
+                           placeholder="@(isEnglish ? "Search for Guides" : "Rehber ara...")"
+                           autocomplete="off" />
+                    <div class="search-results" id="searchResults"></div>
+                </div>
+                <button class="search-btn" onclick="document.getElementById('searchInput').focus()">
+                    @(isEnglish ? "Search" : "Ara")
+                </button>
+            </div>
+        </div>
+
+        <!-- Featured Section -->
         @if (Model.FeaturedGuides.Any())
         {
+            <div class="filter-bar">
+                <h2 class="section-title">@(isEnglish ? "Featured Guides" : "Öne Çıkan Rehberler")</h2>
+            </div>
+
             var featured = Model.FeaturedGuides.First();
             var featuredTitle = isEnglish && !string.IsNullOrEmpty(featured.TitleEn) ? featured.TitleEn : featured.TitleTr;
             var featuredSummary = isEnglish && !string.IsNullOrEmpty(featured.SummaryEn) ? featured.SummaryEn : featured.SummaryTr;
@@ -60,13 +92,20 @@
             </div>
         }
 
+        <!-- Recent Guides -->
         @if (Model.RecentGuides.Any())
         {
-            <h2 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 1.25rem;">
-                @(isEnglish ? "Recent Guides" : "Son Eklenen Rehberler")
-            </h2>
+            <div class="filter-bar">
+                <h2 class="section-title">@(isEnglish ? "Recent Guides" : "Son Eklenen Rehberler")</h2>
+                <div class="filter-options">
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="showFeaturedOnly" />
+                        @(isEnglish ? "Show Featured Only" : "Sadece Öne Çıkanlar")
+                    </label>
+                </div>
+            </div>
 
-            <div class="guide-grid">
+            <div class="guide-grid" id="guideGrid">
                 @foreach (var guide in Model.RecentGuides)
                 {
                     var title = isEnglish && !string.IsNullOrEmpty(guide.TitleEn) ? guide.TitleEn : guide.TitleTr;
@@ -74,37 +113,90 @@
                     var catSlug = isEnglish && !string.IsNullOrEmpty(guide.Category?.SlugEn) ? guide.Category.SlugEn : guide.Category?.SlugTr;
                     var guideSlug = isEnglish && !string.IsNullOrEmpty(guide.SlugEn) ? guide.SlugEn : guide.SlugTr;
                     var catName = isEnglish && !string.IsNullOrEmpty(guide.Category?.NameEn) ? guide.Category.NameEn : guide.Category?.NameTr;
+                    var catIcon = guide.Category?.Icon ?? "📚";
+                    
+                    // Determine category color class
+                    var catColorClass = "default";
+                    var catNameLower = (guide.Category?.NameTr ?? "").ToLower();
+                    if (catNameLower.Contains("yapay zeka") || catNameLower.Contains("artificial")) catColorClass = "ai";
+                    else if (catNameLower.Contains("veri") || catNameLower.Contains("data")) catColorClass = "data";
+                    else if (catNameLower.Contains("güvenlik") || catNameLower.Contains("security")) catColorClass = "security";
+                    else if (catNameLower.Contains("e-ticaret") || catNameLower.Contains("commerce")) catColorClass = "ecommerce";
+                    else if (catNameLower.Contains("dosya") || catNameLower.Contains("file")) catColorClass = "file";
+                    else if (catNameLower.Contains("görsel") || catNameLower.Contains("image")) catColorClass = "image";
+                    else if (catNameLower.Contains("seo")) catColorClass = "seo";
 
-                    <article class="guide-card">
-                        <div class="guide-tags">
-                            @foreach (var tag in guide.GuideTags.Take(3))
-                            {
-                                var tagName = isEnglish && !string.IsNullOrEmpty(tag.Tag.NameEn) ? tag.Tag.NameEn : tag.Tag.NameTr;
-                                <span class="tag" style="@(!string.IsNullOrEmpty(tag.Tag.Color) ? $"background:{tag.Tag.Color};color:#fff;" : "")">
-                                    @tagName
-                                </span>
-                            }
+                    <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@catSlug/@guideSlug" class="guide-card" data-featured="@guide.IsFeatured.ToString().ToLower()">
+                        <div class="guide-card-header">
+                            <div class="guide-icon">@catIcon</div>
+                            <div class="guide-title-wrapper">
+                                <h3 class="guide-title">@title</h3>
+                                @if (guide.IsFeatured)
+                                {
+                                    <span class="guide-badge featured">
+                                        <span class="guide-badge-icon">⚡</span>
+                                        @(isEnglish ? "FEATURED" : "ÖNE ÇIKAN")
+                                    </span>
+                                }
+                            </div>
                         </div>
-                        <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@catSlug/@guideSlug" class="guide-title">
-                            @title
-                        </a>
+                        
+                        <span class="guide-category-tag @catColorClass">@catName</span>
+                        
                         @if (!string.IsNullOrEmpty(summary))
                         {
                             <p class="guide-summary">@summary</p>
                         }
-                        <div class="guide-meta">
-                            @guide.Category?.Icon @catName · @guide.CreatedAt.ToString("dd MMM yyyy")
+                        
+                        <div class="guide-footer">
+                            <div class="guide-author">
+                                <div class="guide-author-avatar">⚡</div>
+                                <span class="guide-author-name">@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")</span>
+                                <span class="guide-author-verified" title="@(isEnglish ? "Verified" : "Doğrulanmış")">✓</span>
+                            </div>
+                            <div class="guide-stats">
+                                <span class="guide-stats-icon">👁</span>
+                                @guide.ViewCount @(isEnglish ? "Views" : "Görüntüleme")
+                            </div>
                         </div>
-                    </article>
+                    </a>
                 }
             </div>
         }
         else
         {
-            <div style="text-align: center; padding: 3rem; color: var(--text-light);">
-                <p style="font-size: 3rem; margin-bottom: 1rem;">📚</p>
-                <p>@(isEnglish ? "No guides yet. Check back soon!" : "Henüz rehber eklenmemiş. Yakında tekrar kontrol edin!")</p>
+            <div style="text-align: center; padding: 4rem 2rem; color: var(--text-light); background: var(--bg-soft); border-radius: 12px; margin-top: 2rem;">
+                <p style="font-size: 4rem; margin-bottom: 1rem;">📚</p>
+                <h3 style="font-size: 1.25rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem;">
+                    @(isEnglish ? "No guides yet" : "Henüz rehber eklenmemiş")
+                </h3>
+                <p>@(isEnglish ? "Check back soon for new content!" : "Yakında yeni içerikler için tekrar kontrol edin!")</p>
             </div>
         }
     </main>
 </div>
+
+@section Scripts {
+<script>
+    // Category section toggle
+    document.querySelectorAll('.category-section-title').forEach(function(title) {
+        title.addEventListener('click', function() {
+            this.parentElement.classList.toggle('open');
+        });
+    });
+
+    // Featured filter
+    document.getElementById('showFeaturedOnly')?.addEventListener('change', function() {
+        var cards = document.querySelectorAll('.guide-card');
+        var showFeatured = this.checked;
+        
+        cards.forEach(function(card) {
+            if (showFeatured && card.dataset.featured !== 'true') {
+                card.style.display = 'none';
+            } else {
+                card.style.display = '';
+            }
+        });
+    });
+</script>
+}

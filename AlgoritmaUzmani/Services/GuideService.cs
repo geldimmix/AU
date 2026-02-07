@@ -3,6 +3,7 @@ using AlgoritmaUzmani.Helpers;
 using AlgoritmaUzmani.Models.Entities;
 using AlgoritmaUzmani.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace AlgoritmaUzmani.Services;
 
@@ -10,89 +11,105 @@ public class GuideService : IGuideService
 {
     private readonly ApplicationDbContext _context;
     private readonly ICacheService _cache;
+    private readonly ITranslationService _translationService;
+    private readonly ILogger<GuideService> _logger;
     private const string CachePrefix = "guide_";
 
-    public GuideService(ApplicationDbContext context, ICacheService cache)
+    public GuideService(
+        ApplicationDbContext context,
+        ICacheService cache,
+        ITranslationService translationService,
+        ILogger<GuideService> logger)
     {
         _context = context;
         _cache = cache;
+        _translationService = translationService;
+        _logger = logger;
     }
 
     public async Task<List<Guide>> GetAllAsync(bool activeOnly = true)
     {
         var cacheKey = $"{CachePrefix}all_{activeOnly}";
-        return await _cache.GetOrCreateAsync(cacheKey, async () =>
-        {
-            var query = _context.Guides
-                .AsNoTracking()
-                .Include(g => g.Category)
-                .Include(g => g.GuideTags)
-                    .ThenInclude(gt => gt.Tag)
-                .AsQueryable();
+        var cached = await _cache.GetAsync<List<Guide>>(cacheKey);
+        if (cached != null) return cached;
 
-            if (activeOnly)
-                query = query.Where(g => g.IsActive);
+        var query = _context.Guides
+            .Include(g => g.Category)
+            .Include(g => g.GuideTags)
+                .ThenInclude(gt => gt.Tag)
+            .AsQueryable();
 
-            return await query
-                .OrderByDescending(g => g.CreatedAt)
-                .ToListAsync();
-        }, TimeSpan.FromMinutes(30));
+        if (activeOnly)
+            query = query.Where(g => g.IsActive);
+
+        var guides = await query
+            .OrderByDescending(g => g.CreatedAt)
+            .ToListAsync();
+
+        await _cache.SetAsync(cacheKey, guides, TimeSpan.FromMinutes(30));
+        return guides;
     }
 
     public async Task<List<Guide>> GetByCategoryAsync(int categoryId, bool activeOnly = true)
     {
         var cacheKey = $"{CachePrefix}category_{categoryId}_{activeOnly}";
-        return await _cache.GetOrCreateAsync(cacheKey, async () =>
-        {
-            var query = _context.Guides
-                .AsNoTracking()
-                .Include(g => g.Category)
-                .Include(g => g.GuideTags)
-                    .ThenInclude(gt => gt.Tag)
-                .Where(g => g.CategoryId == categoryId);
+        var cached = await _cache.GetAsync<List<Guide>>(cacheKey);
+        if (cached != null) return cached;
 
-            if (activeOnly)
-                query = query.Where(g => g.IsActive);
+        var query = _context.Guides
+            .Include(g => g.Category)
+            .Include(g => g.GuideTags)
+                .ThenInclude(gt => gt.Tag)
+            .Where(g => g.CategoryId == categoryId);
 
-            return await query
-                .OrderBy(g => g.DisplayOrder)
-                .ThenByDescending(g => g.CreatedAt)
-                .ToListAsync();
-        }, TimeSpan.FromMinutes(30));
+        if (activeOnly)
+            query = query.Where(g => g.IsActive);
+
+        var guides = await query
+            .OrderByDescending(g => g.IsFeatured)
+            .ThenByDescending(g => g.CreatedAt)
+            .ToListAsync();
+
+        await _cache.SetAsync(cacheKey, guides, TimeSpan.FromMinutes(30));
+        return guides;
     }
 
     public async Task<List<Guide>> GetFeaturedAsync(int count = 5)
     {
         var cacheKey = $"{CachePrefix}featured_{count}";
-        return await _cache.GetOrCreateAsync(cacheKey, async () =>
-        {
-            return await _context.Guides
-                .AsNoTracking()
-                .Include(g => g.Category)
-                .Include(g => g.GuideTags)
-                    .ThenInclude(gt => gt.Tag)
-                .Where(g => g.IsActive && g.IsFeatured)
-                .OrderByDescending(g => g.CreatedAt)
-                .Take(count)
-                .ToListAsync();
-        }, TimeSpan.FromMinutes(30));
+        var cached = await _cache.GetAsync<List<Guide>>(cacheKey);
+        if (cached != null) return cached;
+
+        var guides = await _context.Guides
+            .Include(g => g.Category)
+            .Include(g => g.GuideTags)
+                .ThenInclude(gt => gt.Tag)
+            .Where(g => g.IsActive && g.IsFeatured)
+            .OrderByDescending(g => g.CreatedAt)
+            .Take(count)
+            .ToListAsync();
+
+        await _cache.SetAsync(cacheKey, guides, TimeSpan.FromMinutes(30));
+        return guides;
     }
 
     public async Task<List<Guide>> GetRecentAsync(int count = 10)
     {
         var cacheKey = $"{CachePrefix}recent_{count}";
-        return await _cache.GetOrCreateAsync(cacheKey, async () =>
-        {
-            return await _context.Guides
-                .AsNoTracking()
-                .Include(g => g.Category)
-                .Include(g => g.GuideTags)
-                    .ThenInclude(gt => gt.Tag)
-                .Where(g => g.IsActive)
-                .OrderByDescending(g => g.CreatedAt)
-                .Take(count)
-                .ToListAsync();
-        }, TimeSpan.FromMinutes(30));
+        var cached = await _cache.GetAsync<List<Guide>>(cacheKey);
+        if (cached != null) return cached;
+
+        var guides = await _context.Guides
+            .Include(g => g.Category)
+            .Include(g => g.GuideTags)
+                .ThenInclude(gt => gt.Tag)
+            .Where(g => g.IsActive)
+            .OrderByDescending(g => g.CreatedAt)
+            .Take(count)
+            .ToListAsync();
+
+        await _cache.SetAsync(cacheKey, guides, TimeSpan.FromMinutes(30));
+        return guides;
     }
 
     public async Task<Guide?> GetByIdAsync(int id)
@@ -109,41 +126,28 @@ public class GuideService : IGuideService
     public async Task<Guide?> GetBySlugAsync(string slug, string language = "tr")
     {
         var cacheKey = $"{CachePrefix}slug_{slug}_{language}";
-        
-        // GetOrCreateAsync null dönebilir, bu yüzden özel bir wrapper kullanıyoruz
         var cached = await _cache.GetAsync<Guide>(cacheKey);
         if (cached != null) return cached;
 
-        // Lock mekanizması ile veri çekme
         Guide? guide;
         if (language == "en")
-        {
             guide = await _context.Guides
-                .AsNoTracking()
                 .Include(g => g.Category)
                 .Include(g => g.GuideTags)
                     .ThenInclude(gt => gt.Tag)
                 .Include(g => g.GuideSeoTags)
                     .ThenInclude(gs => gs.SeoTag)
-                .Include(g => g.RelatedGuides)
-                    .ThenInclude(rg => rg.Related)
-                        .ThenInclude(r => r.Category)
+                .Include(g => g.CodeBlocks)
                 .FirstOrDefaultAsync(g => g.SlugEn == slug && g.IsActive);
-        }
         else
-        {
             guide = await _context.Guides
-                .AsNoTracking()
                 .Include(g => g.Category)
                 .Include(g => g.GuideTags)
                     .ThenInclude(gt => gt.Tag)
                 .Include(g => g.GuideSeoTags)
                     .ThenInclude(gs => gs.SeoTag)
-                .Include(g => g.RelatedGuides)
-                    .ThenInclude(rg => rg.Related)
-                        .ThenInclude(r => r.Category)
+                .Include(g => g.CodeBlocks)
                 .FirstOrDefaultAsync(g => g.SlugTr == slug && g.IsActive);
-        }
 
         if (guide != null)
             await _cache.SetAsync(cacheKey, guide, TimeSpan.FromMinutes(30));
@@ -161,55 +165,56 @@ public class GuideService : IGuideService
                 .ThenInclude(gs => gs.SeoTag)
             .Include(g => g.RelatedGuides)
                 .ThenInclude(rg => rg.Related)
+            .Include(g => g.CodeBlocks)
             .FirstOrDefaultAsync(g => g.Id == id);
     }
 
     public async Task<List<Guide>> GetRelatedGuidesAsync(int guideId)
     {
-        var cacheKey = $"{CachePrefix}related_{guideId}";
-        return await _cache.GetOrCreateAsync(cacheKey, async () =>
-        {
-            var relatedIds = await _context.RelatedGuides
-                .AsNoTracking()
-                .Where(rg => rg.GuideId == guideId)
-                .OrderBy(rg => rg.DisplayOrder)
-                .Select(rg => rg.RelatedGuideId)
-                .ToListAsync();
+        var relatedIds = await _context.RelatedGuides
+            .Where(rg => rg.GuideId == guideId)
+            .Select(rg => rg.RelatedGuideId)
+            .ToListAsync();
 
-            var guides = await _context.Guides
-                .AsNoTracking()
-                .Include(g => g.Category)
-                .Include(g => g.GuideTags)
-                    .ThenInclude(gt => gt.Tag)
-                .Where(g => relatedIds.Contains(g.Id) && g.IsActive)
-                .ToListAsync();
-
-            // Preserve order
-            return relatedIds
-                .Select(id => guides.FirstOrDefault(g => g.Id == id))
-                .Where(g => g != null)
-                .Cast<Guide>()
-                .ToList();
-        }, TimeSpan.FromMinutes(30));
+        return await _context.Guides
+            .Include(g => g.Category)
+            .Where(g => relatedIds.Contains(g.Id) && g.IsActive)
+            .ToListAsync();
     }
 
     public async Task<Guide> CreateAsync(Guide guide)
     {
         guide.SlugTr = SlugHelper.GenerateSlug(guide.TitleTr);
+        guide.CreatedAt = DateTime.UtcNow;
+
+        // Auto-translate to English if not provided
+        if (string.IsNullOrEmpty(guide.TitleEn))
+        {
+            try
+            {
+                guide.TitleEn = await _translationService.TranslateToEnglishAsync(guide.TitleTr);
+                if (!string.IsNullOrEmpty(guide.SummaryTr))
+                    guide.SummaryEn = await _translationService.TranslateToEnglishAsync(guide.SummaryTr);
+                if (!string.IsNullOrEmpty(guide.ContentTr))
+                    guide.ContentEn = await _translationService.TranslateToEnglishAsync(guide.ContentTr);
+                if (!string.IsNullOrEmpty(guide.MetaDescriptionTr))
+                    guide.MetaDescriptionEn = await _translationService.TranslateToEnglishAsync(guide.MetaDescriptionTr);
+                guide.IsTranslated = true;
+                _logger.LogInformation("Guide translated: {TitleTr} -> {TitleEn}", guide.TitleTr, guide.TitleEn);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to translate guide: {TitleTr}", guide.TitleTr);
+            }
+        }
+
         if (!string.IsNullOrEmpty(guide.TitleEn))
             guide.SlugEn = SlugHelper.GenerateSlug(guide.TitleEn);
-
-        // Ensure MetaDescription fields don't exceed 160 chars
-        guide.MetaDescriptionTr = TruncateString(guide.MetaDescriptionTr, 160);
-        guide.MetaDescriptionEn = TruncateString(guide.MetaDescriptionEn, 160);
-
-        guide.CreatedAt = DateTime.UtcNow;
 
         _context.Guides.Add(guide);
         await _context.SaveChangesAsync();
 
         await _cache.RemoveByPrefixAsync(CachePrefix);
-        await _cache.RemoveByPrefixAsync("category_");
         return guide;
     }
 
@@ -219,34 +224,63 @@ public class GuideService : IGuideService
         if (existing == null)
             throw new InvalidOperationException("Guide not found");
 
+        bool needsTranslation = existing.TitleTr != guide.TitleTr || existing.ContentTr != guide.ContentTr;
+
         existing.CategoryId = guide.CategoryId;
         existing.TitleTr = guide.TitleTr;
-        existing.TitleEn = guide.TitleEn;
         existing.SlugTr = SlugHelper.GenerateSlug(guide.TitleTr);
-        existing.SlugEn = !string.IsNullOrEmpty(guide.TitleEn) 
-            ? SlugHelper.GenerateSlug(guide.TitleEn) 
-            : null;
         existing.SummaryTr = guide.SummaryTr;
-        existing.SummaryEn = guide.SummaryEn;
         existing.ContentTr = guide.ContentTr;
-        existing.ContentEn = guide.ContentEn;
-        existing.MetaDescriptionTr = TruncateString(guide.MetaDescriptionTr, 160);
-        existing.MetaDescriptionEn = TruncateString(guide.MetaDescriptionEn, 160);
+        existing.MetaDescriptionTr = guide.MetaDescriptionTr;
         existing.SeoKeywordsTr = guide.SeoKeywordsTr;
-        existing.SeoKeywordsEn = guide.SeoKeywordsEn;
         existing.FeaturedImage = guide.FeaturedImage;
         existing.FeaturedImageAltTr = guide.FeaturedImageAltTr;
-        existing.FeaturedImageAltEn = guide.FeaturedImageAltEn;
         existing.IsFeatured = guide.IsFeatured;
         existing.DisplayOrder = guide.DisplayOrder;
         existing.IsActive = guide.IsActive;
-        existing.IsTranslated = guide.IsTranslated;
         existing.UpdatedAt = DateTime.UtcNow;
+
+        // Auto-translate if Turkish content changed
+        if (needsTranslation && string.IsNullOrEmpty(guide.TitleEn))
+        {
+            try
+            {
+                existing.TitleEn = await _translationService.TranslateToEnglishAsync(guide.TitleTr);
+                if (!string.IsNullOrEmpty(guide.SummaryTr))
+                    existing.SummaryEn = await _translationService.TranslateToEnglishAsync(guide.SummaryTr);
+                if (!string.IsNullOrEmpty(guide.ContentTr))
+                    existing.ContentEn = await _translationService.TranslateToEnglishAsync(guide.ContentTr);
+                if (!string.IsNullOrEmpty(guide.MetaDescriptionTr))
+                    existing.MetaDescriptionEn = await _translationService.TranslateToEnglishAsync(guide.MetaDescriptionTr);
+                existing.IsTranslated = true;
+                _logger.LogInformation("Guide updated and translated: {TitleTr} -> {TitleEn}", guide.TitleTr, existing.TitleEn);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to translate guide: {TitleTr}", guide.TitleTr);
+                existing.TitleEn = guide.TitleEn;
+                existing.SummaryEn = guide.SummaryEn;
+                existing.ContentEn = guide.ContentEn;
+                existing.MetaDescriptionEn = guide.MetaDescriptionEn;
+            }
+        }
+        else
+        {
+            existing.TitleEn = guide.TitleEn;
+            existing.SummaryEn = guide.SummaryEn;
+            existing.ContentEn = guide.ContentEn;
+            existing.MetaDescriptionEn = guide.MetaDescriptionEn;
+            existing.SeoKeywordsEn = guide.SeoKeywordsEn;
+            existing.FeaturedImageAltEn = guide.FeaturedImageAltEn;
+        }
+
+        existing.SlugEn = !string.IsNullOrEmpty(existing.TitleEn)
+            ? SlugHelper.GenerateSlug(existing.TitleEn)
+            : null;
 
         await _context.SaveChangesAsync();
 
         await _cache.RemoveByPrefixAsync(CachePrefix);
-        await _cache.RemoveByPrefixAsync("category_");
         return existing;
     }
 
@@ -259,7 +293,6 @@ public class GuideService : IGuideService
         await _context.SaveChangesAsync();
 
         await _cache.RemoveByPrefixAsync(CachePrefix);
-        await _cache.RemoveByPrefixAsync("category_");
         return true;
     }
 
@@ -270,9 +303,12 @@ public class GuideService : IGuideService
 
     public async Task IncrementViewCountAsync(int id)
     {
-        await _context.Guides
-            .Where(g => g.Id == id)
-            .ExecuteUpdateAsync(s => s.SetProperty(g => g.ViewCount, g => g.ViewCount + 1));
+        var guide = await _context.Guides.FindAsync(id);
+        if (guide != null)
+        {
+            guide.ViewCount++;
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task SetRelatedGuidesAsync(int guideId, List<int> relatedGuideIds)
@@ -284,31 +320,28 @@ public class GuideService : IGuideService
         _context.RelatedGuides.RemoveRange(existing);
 
         // Add new relations
-        var order = 0;
         foreach (var relatedId in relatedGuideIds)
         {
-            if (relatedId != guideId) // Can't relate to self
+            _context.RelatedGuides.Add(new RelatedGuide
             {
-                _context.RelatedGuides.Add(new RelatedGuide
-                {
-                    GuideId = guideId,
-                    RelatedGuideId = relatedId,
-                    DisplayOrder = order++
-                });
-            }
+                GuideId = guideId,
+                RelatedGuideId = relatedId
+            });
         }
 
         await _context.SaveChangesAsync();
-        await _cache.RemoveByPrefixAsync($"{CachePrefix}related_{guideId}");
+        await _cache.RemoveByPrefixAsync(CachePrefix);
     }
 
     public async Task SetTagsAsync(int guideId, List<int> tagIds)
     {
+        // Remove existing tags
         var existing = await _context.GuideTags
             .Where(gt => gt.GuideId == guideId)
             .ToListAsync();
         _context.GuideTags.RemoveRange(existing);
 
+        // Add new tags
         foreach (var tagId in tagIds)
         {
             _context.GuideTags.Add(new GuideTag
@@ -324,11 +357,13 @@ public class GuideService : IGuideService
 
     public async Task SetSeoTagsAsync(int guideId, List<int> seoTagIds)
     {
+        // Remove existing SEO tags
         var existing = await _context.GuideSeoTags
             .Where(gs => gs.GuideId == guideId)
             .ToListAsync();
         _context.GuideSeoTags.RemoveRange(existing);
 
+        // Add new SEO tags
         foreach (var seoTagId in seoTagIds)
         {
             _context.GuideSeoTags.Add(new GuideSeoTag
@@ -344,29 +379,30 @@ public class GuideService : IGuideService
 
     public async Task<List<Guide>> SearchAsync(string query, string language = "tr", int limit = 10)
     {
-        if (string.IsNullOrWhiteSpace(query) || query.Length < 2)
+        if (string.IsNullOrWhiteSpace(query))
             return new List<Guide>();
 
-        query = query.ToLower().Trim();
+        query = query.ToLower();
 
         var guides = await _context.Guides
             .Include(g => g.Category)
+            .Include(g => g.GuideTags)
+                .ThenInclude(gt => gt.Tag)
             .Where(g => g.IsActive)
-            .Where(g => 
-                (language == "tr" 
-                    ? g.TitleTr.ToLower().Contains(query) || 
-                      (g.SummaryTr != null && g.SummaryTr.ToLower().Contains(query))
-                    : (g.TitleEn != null && g.TitleEn.ToLower().Contains(query)) || 
-                      (g.SummaryEn != null && g.SummaryEn.ToLower().Contains(query)) ||
-                      g.TitleTr.ToLower().Contains(query)
-                )
+            .Where(g =>
+                (language == "tr" && (
+                    g.TitleTr.ToLower().Contains(query) ||
+                    (g.SummaryTr != null && g.SummaryTr.ToLower().Contains(query)) ||
+                    g.ContentTr.ToLower().Contains(query)
+                )) ||
+                (language == "en" && (
+                    (g.TitleEn != null && g.TitleEn.ToLower().Contains(query)) ||
+                    (g.SummaryEn != null && g.SummaryEn.ToLower().Contains(query)) ||
+                    (g.ContentEn != null && g.ContentEn.ToLower().Contains(query))
+                ))
             )
-            .OrderByDescending(g => 
-                language == "tr" 
-                    ? g.TitleTr.ToLower().StartsWith(query) 
-                    : (g.TitleEn != null && g.TitleEn.ToLower().StartsWith(query))
-            )
-            .ThenByDescending(g => g.ViewCount)
+            .OrderByDescending(g => g.IsFeatured)
+            .ThenByDescending(g => g.CreatedAt)
             .Take(limit)
             .ToListAsync();
 
@@ -375,60 +411,47 @@ public class GuideService : IGuideService
 
     public async Task SaveCodeBlocksAsync<T>(int guideId, List<T> codeBlocks) where T : class
     {
-        // Remove existing code blocks for this guide
+        // Remove existing code blocks
         var existing = await _context.CodeBlocks
             .Where(cb => cb.GuideId == guideId)
             .ToListAsync();
         _context.CodeBlocks.RemoveRange(existing);
 
-        // Add new code blocks
-        foreach (var block in codeBlocks)
+        // If T is CodeBlock, add directly
+        if (typeof(T) == typeof(CodeBlock))
         {
-            var blockId = block.GetType().GetProperty("BlockId")?.GetValue(block) as string ?? Guid.NewGuid().ToString();
-            var sourceLanguage = block.GetType().GetProperty("SourceLanguage")?.GetValue(block) as string ?? "javascript";
-            var sourceCode = block.GetType().GetProperty("SourceCode")?.GetValue(block) as string ?? "";
-            var translations = block.GetType().GetProperty("Translations")?.GetValue(block) as Dictionary<string, string> ?? new();
-            var displayOrder = (int)(block.GetType().GetProperty("DisplayOrder")?.GetValue(block) ?? 0);
-
-            var codeBlock = new CodeBlock
+            foreach (var block in codeBlocks.Cast<CodeBlock>())
             {
-                GuideId = guideId,
-                BlockId = blockId,
-                SourceLanguage = sourceLanguage,
-                SourceCode = sourceCode,
-                Translations = System.Text.Json.JsonSerializer.Serialize(translations),
-                DisplayOrder = displayOrder,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            _context.CodeBlocks.Add(codeBlock);
+                block.GuideId = guideId;
+                block.CreatedAt = DateTime.UtcNow;
+                _context.CodeBlocks.Add(block);
+            }
+        }
+        else
+        {
+            // Serialize and deserialize if it's a different type
+            var json = JsonSerializer.Serialize(codeBlocks);
+            var blocks = JsonSerializer.Deserialize<List<CodeBlock>>(json);
+            if (blocks != null)
+            {
+                foreach (var block in blocks)
+                {
+                    block.GuideId = guideId;
+                    block.CreatedAt = DateTime.UtcNow;
+                    _context.CodeBlocks.Add(block);
+                }
+            }
         }
 
         await _context.SaveChangesAsync();
-        await _cache.RemoveByPrefixAsync($"{CachePrefix}codeblocks_{guideId}");
+        await _cache.RemoveByPrefixAsync(CachePrefix);
     }
 
     public async Task<List<CodeBlock>> GetCodeBlocksByGuideIdAsync(int guideId)
     {
-        var cacheKey = $"{CachePrefix}codeblocks_{guideId}";
-        return await _cache.GetOrCreateAsync(cacheKey, async () =>
-        {
-            return await _context.CodeBlocks
-                .AsNoTracking()
-                .Where(cb => cb.GuideId == guideId)
-                .OrderBy(cb => cb.DisplayOrder)
-                .ToListAsync();
-        }, TimeSpan.FromMinutes(30));
-    }
-
-    private static string? TruncateString(string? value, int maxLength)
-    {
-        if (string.IsNullOrEmpty(value)) return value;
-        
-        value = value.Trim();
-        if (value.Length <= maxLength) return value;
-        
-        return value.Substring(0, maxLength - 3).TrimEnd() + "...";
+        return await _context.CodeBlocks
+            .Where(cb => cb.GuideId == guideId)
+            .OrderBy(cb => cb.DisplayOrder)
+            .ToListAsync();
     }
 }
-

@@ -1,52 +1,101 @@
-using AlgoritmaUzmani.Services.Interfaces;
 using Microsoft.Extensions.Caching.Memory;
+using AlgoritmaUzmani.Services.Interfaces;
 
 namespace AlgoritmaUzmani.Services;
 
-/// <summary>
-/// Basitleştirilmiş cache servisi - Entity Framework nesneleri için cache KULLANILMIYOR
-/// IMemoryCache sadece basit değerler için kullanılmalı (string, int, vs.)
-/// </summary>
 public class CacheService : ICacheService
 {
     private readonly IMemoryCache _cache;
-    private static readonly TimeSpan DefaultExpiration = TimeSpan.FromMinutes(30);
+    private readonly HashSet<string> _keys = new();
+    private readonly object _lock = new();
 
     public CacheService(IMemoryCache cache)
     {
         _cache = cache;
     }
 
-    public Task<T?> GetAsync<T>(string key) where T : class
+    public T? Get<T>(string key)
     {
-        // Cache devre dışı - her zaman null dön, factory çalışsın
-        return Task.FromResult<T?>(null);
+        return _cache.TryGetValue(key, out T? value) ? value : default;
     }
 
-    public async Task<T> GetOrCreateAsync<T>(string key, Func<Task<T>> factory, TimeSpan? expiration = null) where T : class
+    public Task<T?> GetAsync<T>(string key)
     {
-        // Cache devre dışı - direkt factory'yi çağır
-        return await factory();
+        return Task.FromResult(Get<T>(key));
     }
 
-    public Task SetAsync<T>(string key, T value, TimeSpan? expiration = null) where T : class
+    public void Set<T>(string key, T value, TimeSpan? expiration = null)
     {
-        // Cache devre dışı - hiçbir şey yapma
+        var options = new MemoryCacheEntryOptions();
+        
+        if (expiration.HasValue)
+        {
+            options.AbsoluteExpirationRelativeToNow = expiration;
+        }
+        else
+        {
+            options.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(30);
+        }
+
+        lock (_lock)
+        {
+            _keys.Add(key);
+        }
+
+        _cache.Set(key, value, options);
+    }
+
+    public Task SetAsync<T>(string key, T value, TimeSpan? expiration = null)
+    {
+        Set(key, value, expiration);
         return Task.CompletedTask;
+    }
+
+    public void Remove(string key)
+    {
+        _cache.Remove(key);
+        
+        lock (_lock)
+        {
+            _keys.Remove(key);
+        }
     }
 
     public Task RemoveAsync(string key)
     {
+        Remove(key);
         return Task.CompletedTask;
+    }
+
+    public void RemoveByPrefix(string prefix)
+    {
+        lock (_lock)
+        {
+            var keysToRemove = _keys.Where(k => k.StartsWith(prefix)).ToList();
+            foreach (var key in keysToRemove)
+            {
+                _cache.Remove(key);
+                _keys.Remove(key);
+            }
+        }
     }
 
     public Task RemoveByPrefixAsync(string prefix)
     {
+        RemoveByPrefix(prefix);
         return Task.CompletedTask;
     }
 
     public Task ClearAllAsync()
     {
+        lock (_lock)
+        {
+            foreach (var key in _keys.ToList())
+            {
+                _cache.Remove(key);
+            }
+            _keys.Clear();
+        }
         return Task.CompletedTask;
     }
 }

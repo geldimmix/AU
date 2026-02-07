@@ -14,6 +14,55 @@ public class VisitorLogService : IVisitorLogService
         _context = context;
     }
 
+    public async Task LogVisitAsync(string path, string ipAddress, string userAgent, string? referer = null)
+    {
+        var log = new VisitorLog
+        {
+            PageUrl = path,
+            IpAddress = ipAddress,
+            UserAgent = userAgent,
+            Referrer = referer,
+            VisitedAt = DateTime.UtcNow,
+            Browser = ParseBrowser(userAgent),
+            OperatingSystem = ParseOS(userAgent),
+            DeviceType = ParseDeviceType(userAgent),
+            SessionId = Guid.NewGuid().ToString("N")[..20]
+        };
+
+        _context.VisitorLogs.Add(log);
+        await _context.SaveChangesAsync();
+    }
+
+    private static string ParseBrowser(string userAgent)
+    {
+        if (string.IsNullOrEmpty(userAgent)) return "Unknown";
+        if (userAgent.Contains("Firefox")) return "Firefox";
+        if (userAgent.Contains("Edg")) return "Edge";
+        if (userAgent.Contains("Chrome")) return "Chrome";
+        if (userAgent.Contains("Safari")) return "Safari";
+        if (userAgent.Contains("Opera") || userAgent.Contains("OPR")) return "Opera";
+        return "Other";
+    }
+
+    private static string ParseOS(string userAgent)
+    {
+        if (string.IsNullOrEmpty(userAgent)) return "Unknown";
+        if (userAgent.Contains("Windows")) return "Windows";
+        if (userAgent.Contains("Mac OS")) return "macOS";
+        if (userAgent.Contains("Linux")) return "Linux";
+        if (userAgent.Contains("Android")) return "Android";
+        if (userAgent.Contains("iOS") || userAgent.Contains("iPhone") || userAgent.Contains("iPad")) return "iOS";
+        return "Other";
+    }
+
+    private static string ParseDeviceType(string userAgent)
+    {
+        if (string.IsNullOrEmpty(userAgent)) return "Unknown";
+        if (userAgent.Contains("Mobile") || userAgent.Contains("Android") || userAgent.Contains("iPhone")) return "Mobile";
+        if (userAgent.Contains("Tablet") || userAgent.Contains("iPad")) return "Tablet";
+        return "Desktop";
+    }
+
     public async Task<List<VisitorLog>> GetRecentAsync(int count = 100)
     {
         return await _context.VisitorLogs
@@ -152,6 +201,7 @@ public class VisitorLogService : IVisitorLogService
             .ExecuteDeleteAsync();
     }
 }
+
 
 
 

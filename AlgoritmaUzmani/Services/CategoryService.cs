@@ -15,7 +15,7 @@ public class CategoryService : ICategoryService
     private const string CachePrefix = "category_";
 
     public CategoryService(
-        ApplicationDbContext context, 
+        ApplicationDbContext context,
         ICacheService cache,
         ITranslationService translationService,
         ILogger<CategoryService> logger)
@@ -29,37 +29,29 @@ public class CategoryService : ICategoryService
     public async Task<List<Category>> GetAllAsync(bool activeOnly = true)
     {
         var cacheKey = $"{CachePrefix}all_{activeOnly}";
-        return await _cache.GetOrCreateAsync(cacheKey, async () =>
-        {
-            var query = _context.Categories
-                .AsNoTracking()
-                .Include(c => c.Guides)
-                .AsQueryable();
-            
-            if (activeOnly)
-                query = query.Where(c => c.IsActive);
+        var cached = await _cache.GetAsync<List<Category>>(cacheKey);
+        if (cached != null) return cached;
 
-            return await query
-                .OrderBy(c => c.DisplayOrder)
-                .ToListAsync();
-        }, TimeSpan.FromHours(1));
+        var query = _context.Categories.AsQueryable();
+        
+        if (activeOnly)
+            query = query.Where(c => c.IsActive);
+
+        var categories = await query
+            .OrderBy(c => c.DisplayOrder)
+            .ThenBy(c => c.NameTr)
+            .Include(c => c.Guides.Where(g => g.IsActive))
+            .ToListAsync();
+
+        await _cache.SetAsync(cacheKey, categories, TimeSpan.FromHours(1));
+        return categories;
     }
 
     public async Task<Category?> GetByIdAsync(int id)
     {
-        var cacheKey = $"{CachePrefix}{id}";
-        var cached = await _cache.GetAsync<Category>(cacheKey);
-        if (cached != null) return cached;
-
-        var category = await _context.Categories
-            .AsNoTracking()
+        return await _context.Categories
             .Include(c => c.Guides.Where(g => g.IsActive))
             .FirstOrDefaultAsync(c => c.Id == id);
-
-        if (category != null)
-            await _cache.SetAsync(cacheKey, category, TimeSpan.FromHours(1));
-
-        return category;
     }
 
     public async Task<Category?> GetBySlugAsync(string slug, string language = "tr")
@@ -70,19 +62,13 @@ public class CategoryService : ICategoryService
 
         Category? category;
         if (language == "en")
-        {
             category = await _context.Categories
-                .AsNoTracking()
                 .Include(c => c.Guides.Where(g => g.IsActive))
                 .FirstOrDefaultAsync(c => c.SlugEn == slug && c.IsActive);
-        }
         else
-        {
             category = await _context.Categories
-                .AsNoTracking()
                 .Include(c => c.Guides.Where(g => g.IsActive))
                 .FirstOrDefaultAsync(c => c.SlugTr == slug && c.IsActive);
-        }
 
         if (category != null)
             await _cache.SetAsync(cacheKey, category, TimeSpan.FromHours(1));
@@ -95,25 +81,24 @@ public class CategoryService : ICategoryService
         category.SlugTr = SlugHelper.GenerateSlug(category.NameTr);
         category.CreatedAt = DateTime.UtcNow;
 
-        // Auto-translate to English
-        try
+        // Auto-translate to English if not provided
+        if (string.IsNullOrEmpty(category.NameEn))
         {
-            var nameEnTask = _translationService.TranslateToEnglishAsync(category.NameTr);
-            var descEnTask = !string.IsNullOrEmpty(category.DescriptionTr) 
-                ? _translationService.TranslateToEnglishAsync(category.DescriptionTr) 
-                : Task.FromResult<string>(null!);
+            try
+            {
+                category.NameEn = await _translationService.TranslateToEnglishAsync(category.NameTr);
+                if (!string.IsNullOrEmpty(category.DescriptionTr))
+                    category.DescriptionEn = await _translationService.TranslateToEnglishAsync(category.DescriptionTr);
+                _logger.LogInformation("Category translated: {NameTr} -> {NameEn}", category.NameTr, category.NameEn);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to translate category: {NameTr}", category.NameTr);
+            }
+        }
 
-            await Task.WhenAll(nameEnTask, descEnTask);
-
-            category.NameEn = await nameEnTask;
-            category.DescriptionEn = await descEnTask;
+        if (!string.IsNullOrEmpty(category.NameEn))
             category.SlugEn = SlugHelper.GenerateSlug(category.NameEn);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to auto-translate category: {Name}", category.NameTr);
-            // Continue without translation
-        }
 
         _context.Categories.Add(category);
         await _context.SaveChangesAsync();
@@ -128,9 +113,7 @@ public class CategoryService : ICategoryService
         if (existing == null)
             throw new InvalidOperationException("Category not found");
 
-        // Check if Turkish content changed - re-translate
-        bool needsTranslation = existing.NameTr != category.NameTr || 
-                                existing.DescriptionTr != category.DescriptionTr;
+        bool needsTranslation = existing.NameTr != category.NameTr;
 
         existing.NameTr = category.NameTr;
         existing.SlugTr = SlugHelper.GenerateSlug(category.NameTr);
@@ -140,27 +123,32 @@ public class CategoryService : ICategoryService
         existing.IsActive = category.IsActive;
         existing.UpdatedAt = DateTime.UtcNow;
 
-        // Auto-translate if content changed
+        // Auto-translate if Turkish content changed
         if (needsTranslation)
         {
             try
             {
-                var nameEnTask = _translationService.TranslateToEnglishAsync(category.NameTr);
-                var descEnTask = !string.IsNullOrEmpty(category.DescriptionTr) 
-                    ? _translationService.TranslateToEnglishAsync(category.DescriptionTr) 
-                    : Task.FromResult<string>(null!);
-
-                await Task.WhenAll(nameEnTask, descEnTask);
-
-                existing.NameEn = await nameEnTask;
-                existing.DescriptionEn = await descEnTask;
-                existing.SlugEn = SlugHelper.GenerateSlug(existing.NameEn);
+                existing.NameEn = await _translationService.TranslateToEnglishAsync(category.NameTr);
+                if (!string.IsNullOrEmpty(category.DescriptionTr))
+                    existing.DescriptionEn = await _translationService.TranslateToEnglishAsync(category.DescriptionTr);
+                _logger.LogInformation("Category updated and translated: {NameTr} -> {NameEn}", category.NameTr, existing.NameEn);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to auto-translate category: {Name}", category.NameTr);
+                _logger.LogError(ex, "Failed to translate category: {NameTr}", category.NameTr);
+                existing.NameEn = category.NameEn;
+                existing.DescriptionEn = category.DescriptionEn;
             }
         }
+        else
+        {
+            existing.NameEn = category.NameEn;
+            existing.DescriptionEn = category.DescriptionEn;
+        }
+
+        existing.SlugEn = !string.IsNullOrEmpty(existing.NameEn)
+            ? SlugHelper.GenerateSlug(existing.NameEn)
+            : null;
 
         await _context.SaveChangesAsync();
 
@@ -176,7 +164,7 @@ public class CategoryService : ICategoryService
         // Check if there are guides in this category
         var hasGuides = await _context.Guides.AnyAsync(g => g.CategoryId == id);
         if (hasGuides)
-            throw new InvalidOperationException("Bu kategoride rehberler var. Önce rehberleri silin veya taşıyın.");
+            throw new InvalidOperationException("Cannot delete category with existing guides");
 
         _context.Categories.Remove(category);
         await _context.SaveChangesAsync();

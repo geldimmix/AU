@@ -1,40 +1,26 @@
 using AlgoritmaUzmani.Data;
-using AlgoritmaUzmani.Middleware;
 using AlgoritmaUzmani.Services;
 using AlgoritmaUzmani.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews();
-
-// Database with connection pooling and retry logic
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-{
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        npgsqlOptions =>
-        {
-            npgsqlOptions.CommandTimeout(30); // 30 seconds timeout
-            npgsqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 3,
-                maxRetryDelay: TimeSpan.FromSeconds(5),
-                errorCodesToAdd: null);
-        });
-    
-    // Enable sensitive data logging in development
-    if (builder.Environment.IsDevelopment())
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
     {
-        options.EnableSensitiveDataLogging();
-        options.EnableDetailedErrors();
-    }
-});
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    });
 
-// Memory Cache
-builder.Services.AddMemoryCache();
+// Database
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Distributed Cache (Memory Cache)
+builder.Services.AddDistributedMemoryCache();
 
 // Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -43,44 +29,31 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LoginPath = "/admin/login";
         options.LogoutPath = "/admin/logout";
         options.AccessDeniedPath = "/admin/login";
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        options.SlidingExpiration = true;
         options.Cookie.Name = "AlgoritmaUzmani.Auth";
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
-        options.ExpireTimeSpan = TimeSpan.FromDays(30);
-        options.SlidingExpiration = true;
     });
 
-// HTTP Client for translation service
-builder.Services.AddHttpClient<ITranslationService, TranslationService>();
-builder.Services.AddHttpClient<ICodeTranslationService, CodeTranslationService>();
-
 // Register Services
+builder.Services.AddScoped<ICacheService, CacheService>();
+builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IGuideService, GuideService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<ISeoTagService, SeoTagService>();
-builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 builder.Services.AddScoped<IImageService, ImageService>();
+builder.Services.AddScoped<ITranslationService, TranslationService>();
+builder.Services.AddScoped<ICodeTranslationService, CodeTranslationService>();
 builder.Services.AddScoped<IStaticPageService, StaticPageService>();
-builder.Services.AddScoped<ISiteSettingService, SiteSettingService>();
 builder.Services.AddScoped<IVisitorLogService, VisitorLogService>();
-builder.Services.AddScoped<ICacheService, CacheService>();
+builder.Services.AddScoped<ISiteSettingService, SiteSettingService>();
 
-// Response Compression
-builder.Services.AddResponseCompression(options =>
-{
-    options.EnableForHttps = true;
-});
+// HttpClient for external API calls
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
-
-// Seed Database
-using (var scope = app.Services.CreateScope())
-{
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await context.Database.MigrateAsync();
-    await DbSeeder.SeedAsync(context);
-}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
@@ -89,37 +62,14 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// Custom 404 page
-app.UseStatusCodePagesWithReExecute("/404");
-
 app.UseHttpsRedirection();
-app.UseResponseCompression();
-
-// Static files
 app.UseStaticFiles();
-
-// AppData static files for uploaded images
-var appDataPath = Path.Combine(builder.Environment.ContentRootPath, 
-    builder.Configuration["AppSettings:AppDataPath"] ?? "AppData");
-if (!Directory.Exists(appDataPath))
-{
-    Directory.CreateDirectory(appDataPath);
-}
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(appDataPath),
-    RequestPath = "/appdata"
-});
 
 app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Visitor Tracking (after auth, only for authenticated requests to exclude admin)
-app.UseVisitorTracking();
-
-// Default route
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

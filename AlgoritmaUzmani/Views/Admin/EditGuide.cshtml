@@ -4,6 +4,127 @@
     Layout = "_AdminLayout";
 }
 
+<style>
+    /* TOC Preview Styles */
+    .toc-preview-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    .toc-preview-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .toc-preview-icon {
+        font-size: 1rem;
+        color: #6b7280;
+    }
+
+    .toc-preview-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #374151;
+    }
+
+    .toc-preview-list {
+        list-style: none;
+        margin: 0;
+        padding: 0.5rem;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .toc-preview-item {
+        margin: 0;
+    }
+
+    .toc-preview-link {
+        display: block;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        color: #6b7280;
+        border-radius: 0.375rem;
+        border-left: 2px solid transparent;
+        transition: all 0.15s ease;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .toc-preview-link:hover {
+        color: #374151;
+        background: #f9fafb;
+    }
+
+    .toc-preview-link.active {
+        color: #d97706;
+        background: #fffbeb;
+        border-left-color: #f59e0b;
+        font-weight: 500;
+    }
+
+    .toc-preview-link.toc-h3 {
+        padding-left: 1.5rem;
+        font-size: 0.75rem;
+    }
+
+    .toc-preview-link.toc-h4 {
+        padding-left: 2.25rem;
+        font-size: 0.7rem;
+    }
+
+    .toc-preview-empty {
+        padding: 1.5rem 1rem;
+        text-align: center;
+        color: #9ca3af;
+        font-size: 0.8125rem;
+    }
+
+    .toc-preview-empty i {
+        display: block;
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        opacity: 0.5;
+    }
+
+    .toc-preview-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.125rem 0.5rem;
+        font-size: 0.625rem;
+        font-weight: 600;
+        background: #fef3c7;
+        color: #92400e;
+        border-radius: 9999px;
+        margin-left: auto;
+    }
+
+    /* Improved editor TOC integration hint */
+    .toc-hint {
+        padding: 0.75rem;
+        background: #eff6ff;
+        border: 1px dashed #3b82f6;
+        border-radius: 0.375rem;
+        margin-bottom: 0.75rem;
+        font-size: 0.75rem;
+        color: #1e40af;
+    }
+
+    .toc-hint code {
+        background: #dbeafe;
+        padding: 0.125rem 0.25rem;
+        border-radius: 0.25rem;
+        font-family: monospace;
+    }
+</style>
+
 <form asp-action="EditGuide" asp-route-id="@Model.Id" method="post" enctype="multipart/form-data" id="guideForm">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="Id" />
@@ -54,15 +175,22 @@
 
                         <div class="form-group">
                             <label class="form-label">İçerik (TR) *</label>
+                            
+                            <div class="toc-hint">
+                                💡 <strong>İçindekiler için:</strong> H2, H3, H4 başlıkları kullanın. 
+                                Örnek: <code>&lt;h2&gt;</code> ile ana başlık, <code>&lt;h3&gt;</code> ile alt başlık.
+                                Başlıklar otomatik olarak sağdaki "İçindekiler" panelinde görünecek.
+                            </div>
+                            
                             <div class="editor-toolbar">
                                 <button type="button" class="editor-btn" onclick="execCmd('bold')" title="Kalın"><i class="fas fa-bold"></i></button>
                                 <button type="button" class="editor-btn" onclick="execCmd('italic')" title="İtalik"><i class="fas fa-italic"></i></button>
                                 <button type="button" class="editor-btn" onclick="execCmd('underline')" title="Altı Çizili"><i class="fas fa-underline"></i></button>
                                 <button type="button" class="editor-btn" onclick="execCmd('strikeThrough')" title="Üstü Çizili"><i class="fas fa-strikethrough"></i></button>
                                 <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
-                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h2')" title="Başlık 2">H2</button>
-                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h3')" title="Başlık 3">H3</button>
-                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h4')" title="Başlık 4">H4</button>
+                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h2')" title="Başlık 2 (Ana Bölüm)">H2</button>
+                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h3')" title="Başlık 3 (Alt Bölüm)">H3</button>
+                                <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'h4')" title="Başlık 4 (Detay)">H4</button>
                                 <button type="button" class="editor-btn" onclick="execCmd('formatBlock', 'p')" title="Paragraf">P</button>
                                 <span style="width: 1px; height: 24px; background: var(--border); margin: 0 0.25rem;"></span>
                                 <button type="button" class="editor-btn" onclick="execCmd('insertUnorderedList')" title="Liste"><i class="fas fa-list-ul"></i></button>
@@ -159,6 +287,23 @@
 
         <!-- Sidebar -->
         <div>
+            <!-- TOC Preview -->
+            <div class="card mb-3 toc-preview-card">
+                <div class="toc-preview-header">
+                    <span class="toc-preview-icon">☰</span>
+                    <span class="toc-preview-title">İçindekiler Önizleme</span>
+                    <span class="toc-preview-badge">
+                        <span id="tocCount">0</span> başlık
+                    </span>
+                </div>
+                <ul class="toc-preview-list" id="tocPreviewList">
+                    <li class="toc-preview-empty">
+                        <i class="fas fa-heading"></i>
+                        İçerikte H2, H3, H4 başlık<br/>ekleyin
+                    </li>
+                </ul>
+            </div>
+
             <!-- Publish -->
             <div class="card mb-3">
                 <div class="card-header">
@@ -344,7 +489,96 @@
 
 @section Scripts {
 <script>
-    // Tabs
+    // =============================================
+    // TABLE OF CONTENTS PREVIEW
+    // =============================================
+    function updateTocPreview() {
+        const editor = document.getElementById('editorTr');
+        const tocList = document.getElementById('tocPreviewList');
+        const tocCount = document.getElementById('tocCount');
+        
+        if (!editor || !tocList) return;
+
+        // Create a temporary container to parse the HTML
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = editor.innerHTML;
+
+        // Find all headings
+        const headings = tempDiv.querySelectorAll('h2, h3, h4');
+        
+        if (headings.length === 0) {
+            tocList.innerHTML = `
+                <li class="toc-preview-empty">
+                    <i class="fas fa-heading"></i>
+                    İçerikte H2, H3, H4 başlık<br/>ekleyin
+                </li>
+            `;
+            tocCount.textContent = '0';
+            return;
+        }
+
+        let tocHTML = '';
+        headings.forEach((heading, index) => {
+            const level = heading.tagName.toLowerCase();
+            const text = heading.textContent.trim();
+            const levelClass = 'toc-' + level;
+            const isFirst = index === 0;
+
+            tocHTML += `
+                <li class="toc-preview-item">
+                    <span class="toc-preview-link ${levelClass} ${isFirst ? 'active' : ''}" 
+                          onclick="scrollToHeading(${index})"
+                          title="${text}">
+                        ${text.length > 35 ? text.substring(0, 35) + '...' : text}
+                    </span>
+                </li>
+            `;
+        });
+
+        tocList.innerHTML = tocHTML;
+        tocCount.textContent = headings.length;
+    }
+
+    // Scroll to heading in editor
+    function scrollToHeading(index) {
+        const editor = document.getElementById('editorTr');
+        const headings = editor.querySelectorAll('h2, h3, h4');
+        
+        if (headings[index]) {
+            headings[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Highlight the heading briefly
+            headings[index].style.backgroundColor = '#fef3c7';
+            setTimeout(() => {
+                headings[index].style.backgroundColor = '';
+            }, 1500);
+
+            // Update active state in TOC
+            document.querySelectorAll('.toc-preview-link').forEach((link, i) => {
+                link.classList.toggle('active', i === index);
+            });
+        }
+    }
+
+    // Debounce function
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    // Debounced TOC update
+    const debouncedTocUpdate = debounce(updateTocPreview, 300);
+
+    // =============================================
+    // TABS
+    // =============================================
     document.querySelectorAll('.tab[data-tab]').forEach(tab => {
         tab.addEventListener('click', function() {
             const tabId = this.getAttribute('data-tab');
@@ -366,10 +600,13 @@
         });
     });
 
-    // Editor Commands
+    // =============================================
+    // EDITOR COMMANDS
+    // =============================================
     function execCmd(command, value = null) {
         document.getElementById('editorTr').focus();
         document.execCommand(command, false, value);
+        debouncedTocUpdate();
     }
 
     function execCmdEn(command, value = null) {
@@ -498,8 +735,8 @@
         const text = (e.clipboardData || window.clipboardData).getData('text/html') || 
                      (e.clipboardData || window.clipboardData).getData('text');
         
-        // Use execCommand to maintain editor state
         document.execCommand('insertHTML', false, text);
+        debouncedTocUpdate();
     });
 
     document.getElementById('editorEn').addEventListener('paste', function(e) {
@@ -508,6 +745,14 @@
                      (e.clipboardData || window.clipboardData).getData('text');
         
         document.execCommand('insertHTML', false, text);
+    });
+
+    // Listen for editor changes to update TOC
+    document.getElementById('editorTr').addEventListener('input', debouncedTocUpdate);
+    document.getElementById('editorTr').addEventListener('keyup', function(e) {
+        if (e.key === 'Enter' || e.key === 'Backspace' || e.key === 'Delete') {
+            debouncedTocUpdate();
+        }
     });
 
     // Form submit - copy editor content
@@ -522,9 +767,14 @@
         const contentEn = document.getElementById('ContentEn').value;
         if (contentTr) document.getElementById('editorTr').innerHTML = contentTr;
         if (contentEn) document.getElementById('editorEn').innerHTML = contentEn;
+        
+        // Initial TOC update
+        updateTocPreview();
     });
 
-    // SEO Suggestions
+    // =============================================
+    // SEO SUGGESTIONS
+    // =============================================
     async function getSeoSuggestions() {
         const title = document.getElementById('TitleTr').value;
         const content = document.getElementById('editorTr').innerHTML;
@@ -574,4 +824,3 @@
     }
 </script>
 }
-
