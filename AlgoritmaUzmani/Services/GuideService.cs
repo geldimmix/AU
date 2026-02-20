@@ -292,7 +292,9 @@ public class GuideService : IGuideService
         _context.Guides.Remove(guide);
         await _context.SaveChangesAsync();
 
+        // Hem guide hem de category cache'lerini temizle
         await _cache.RemoveByPrefixAsync(CachePrefix);
+        await _cache.RemoveByPrefixAsync("category_");
         return true;
     }
 

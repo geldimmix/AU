@@ -42,7 +42,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 
 // Register Core Services
-builder.Services.AddScoped<ICacheService, CacheService>();
+builder.Services.AddSingleton<ICacheService, CacheService>(); // Singleton olmalı - _keys HashSet tüm uygulama boyunca korunmalı
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IGuideService, GuideService>();
