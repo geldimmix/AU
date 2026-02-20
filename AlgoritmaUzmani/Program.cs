@@ -76,6 +76,17 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
+// AppData klasörünü /appdata yolundan serve et
+var appDataPath = Path.Combine(app.Environment.ContentRootPath, "AppData");
+if (!Directory.Exists(appDataPath))
+    Directory.CreateDirectory(appDataPath);
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(appDataPath),
+    RequestPath = "/appdata"
+});
+
 app.UseRouting();
 
 app.UseAuthentication();
