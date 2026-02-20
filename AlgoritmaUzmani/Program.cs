@@ -3,10 +3,20 @@ using AlgoritmaUzmani.Services;
 using AlgoritmaUzmani.Services.Interfaces;
 using AlgoritmaUzmani.Modules.Guides;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// DataProtection - key'leri kalıcı olarak sakla (restart sonrası kaybolmasın)
+var keysPath = Path.Combine(builder.Environment.ContentRootPath, "Keys");
+if (!Directory.Exists(keysPath))
+    Directory.CreateDirectory(keysPath);
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+    .SetApplicationName("AlgoritmaUzmani");
 
 // Add services to the container.
 builder.Services.AddControllersWithViews()
