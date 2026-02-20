@@ -40,6 +40,7 @@ public class AdminController : Controller
         IStaticPageService staticPageService,
         IVisitorLogService visitorLogService,
         ISiteSettingService siteSettingService,
+        IConfiguration configuration,
         ILogger<AdminController> logger)
     {
         _authService = authService;
@@ -54,6 +55,7 @@ public class AdminController : Controller
         _staticPageService = staticPageService;
         _visitorLogService = visitorLogService;
         _siteSettingService = siteSettingService;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -518,42 +520,130 @@ public class AdminController : Controller
         return RedirectToAction(nameof(Guides));
     }
 
-    [HttpPost("guides/translate/{id}")]
+    [HttpPost("guides/translate-api/{id}")]
     [Authorize]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> TranslateGuide(int id)
+    public async Task<IActionResult> TranslateGuideApi(int id)
     {
+        var logs = new List<object>();
+        
+        void Log(string step, string status, string detail = "")
+        {
+            logs.Add(new { time = DateTime.Now.ToString("HH:mm:ss.fff"), step, status, detail });
+        }
+
         try
         {
+            Log("BAŞLANGIÇ", "info", $"Rehber ID: {id} çeviri başlatılıyor...");
+            
             var guide = await _guideService.GetByIdAsync(id);
             if (guide == null)
-                return NotFound();
+                return Json(new { success = false, error = "Rehber bulunamadı", logs });
 
-            var (titleEn, contentEn, summaryEn, metaDescriptionEn) = await _translationService.TranslateGuideAsync(
-                guide.TitleTr,
-                guide.ContentTr,
-                guide.SummaryTr,
-                guide.MetaDescriptionTr
-            );
+            Log("VERİ", "ok", $"Başlık: {guide.TitleTr?.Substring(0, Math.Min(50, guide.TitleTr?.Length ?? 0))}...");
+            Log("VERİ", "ok", $"İçerik uzunluğu: {guide.ContentTr?.Length ?? 0} karakter");
+            Log("VERİ", "ok", $"Özet: {(string.IsNullOrEmpty(guide.SummaryTr) ? "YOK" : guide.SummaryTr.Length + " karakter")}");
+            Log("VERİ", "ok", $"Meta: {(string.IsNullOrEmpty(guide.MetaDescriptionTr) ? "YOK" : guide.MetaDescriptionTr.Length + " karakter")}");
 
+            // API bilgileri
+            var apiKey = _configuration["DeepInfra:ApiKey"];
+            var baseUrl = _configuration["DeepInfra:BaseUrl"];
+            var model = _configuration["DeepInfra:Model"];
+            Log("API CONFIG", "info", $"URL: {baseUrl}");
+            Log("API CONFIG", "info", $"Model: {model}");
+            Log("API CONFIG", "info", $"Key: {apiKey?.Substring(0, Math.Min(10, apiKey?.Length ?? 0))}...");
+
+            // Başlık çevir
+            Log("ÇEVİRİ: BAŞLIK", "pending", "İstek gönderiliyor...");
+            string titleEn = "";
+            try
+            {
+                titleEn = await _translationService.TranslateToEnglishAsync(guide.TitleTr);
+                Log("ÇEVİRİ: BAŞLIK", "ok", $"Sonuç: {titleEn}");
+            }
+            catch (Exception ex)
+            {
+                Log("ÇEVİRİ: BAŞLIK", "error", $"HATA: {ex.Message}");
+                return Json(new { success = false, error = $"Başlık çevirisi başarısız: {ex.Message}", logs });
+            }
+
+            // İçerik çevir
+            Log("ÇEVİRİ: İÇERİK", "pending", $"İstek gönderiliyor ({guide.ContentTr?.Length ?? 0} karakter)...");
+            string contentEn = "";
+            try
+            {
+                contentEn = await _translationService.TranslateToEnglishAsync(guide.ContentTr ?? "");
+                Log("ÇEVİRİ: İÇERİK", "ok", $"Sonuç: {contentEn?.Length ?? 0} karakter - İlk 200: {contentEn?.Substring(0, Math.Min(200, contentEn?.Length ?? 0))}...");
+            }
+            catch (Exception ex)
+            {
+                Log("ÇEVİRİ: İÇERİK", "error", $"HATA: {ex.Message}");
+                return Json(new { success = false, error = $"İçerik çevirisi başarısız: {ex.Message}", logs });
+            }
+
+            // Özet çevir
+            string summaryEn = null;
+            if (!string.IsNullOrEmpty(guide.SummaryTr))
+            {
+                Log("ÇEVİRİ: ÖZET", "pending", "İstek gönderiliyor...");
+                try
+                {
+                    summaryEn = await _translationService.TranslateToEnglishAsync(guide.SummaryTr);
+                    Log("ÇEVİRİ: ÖZET", "ok", $"Sonuç: {summaryEn}");
+                }
+                catch (Exception ex)
+                {
+                    Log("ÇEVİRİ: ÖZET", "error", $"HATA: {ex.Message}");
+                }
+            }
+
+            // Meta description çevir
+            string metaDescriptionEn = null;
+            if (!string.IsNullOrEmpty(guide.MetaDescriptionTr))
+            {
+                Log("ÇEVİRİ: META", "pending", "İstek gönderiliyor...");
+                try
+                {
+                    metaDescriptionEn = await _translationService.TranslateToEnglishAsync(guide.MetaDescriptionTr);
+                    if (metaDescriptionEn?.Length > 160)
+                        metaDescriptionEn = metaDescriptionEn.Substring(0, 160);
+                    Log("ÇEVİRİ: META", "ok", $"Sonuç: {metaDescriptionEn}");
+                }
+                catch (Exception ex)
+                {
+                    Log("ÇEVİRİ: META", "error", $"HATA: {ex.Message}");
+                }
+            }
+
+            // Kaydet
+            Log("KAYIT", "pending", "Veritabanına yazılıyor...");
             guide.TitleEn = titleEn;
             guide.ContentEn = contentEn;
             guide.SummaryEn = summaryEn;
             guide.MetaDescriptionEn = metaDescriptionEn;
             guide.IsTranslated = true;
-
             await _guideService.UpdateAsync(guide);
+            Log("KAYIT", "ok", "Veritabanına başarıyla kaydedildi!");
 
-            TempData["Success"] = "Rehber başarıyla çevrildi";
+            return Json(new { 
+                success = true, 
+                logs,
+                result = new {
+                    titleEn,
+                    contentEn = contentEn?.Substring(0, Math.Min(300, contentEn?.Length ?? 0)),
+                    summaryEn,
+                    metaDescriptionEn
+                }
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Translation failed for guide {GuideId}", id);
-            TempData["Error"] = "Çeviri sırasında bir hata oluştu";
+            Log("KRİTİK HATA", "error", $"{ex.GetType().Name}: {ex.Message}");
+            return Json(new { success = false, error = ex.Message, logs });
         }
-
-        return RedirectToAction(nameof(EditGuide), new { id });
     }
+
+    private readonly IConfiguration _configuration;
 
     #endregion
 
