@@ -304,6 +304,27 @@
                 </ul>
             </div>
 
+            <!-- Draft Status -->
+            <div class="card mb-3" id="draftCard" style="display: none;">
+                <div class="card-body" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <i class="fas fa-file-alt" style="color: #92400e;"></i>
+                        <strong style="color: #92400e;">Kaydedilmiş Taslak Var</strong>
+                    </div>
+                    <p style="font-size: 0.8rem; color: #78350f; margin: 0 0 0.75rem;">
+                        <span id="draftTime"></span>
+                    </p>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="loadDraft()" style="flex: 1;">
+                            <i class="fas fa-undo"></i> Geri Yükle
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="clearDraft()" style="flex: 1;">
+                            <i class="fas fa-trash"></i> Sil
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Publish -->
             <div class="card mb-3">
                 <div class="card-header">
@@ -347,6 +368,17 @@
                     <div class="form-group">
                         <label asp-for="DisplayOrder" class="form-label">Sıralama</label>
                         <input asp-for="DisplayOrder" type="number" class="form-control" />
+                    </div>
+
+                    <!-- Autosave indicator -->
+                    <div id="autosaveIndicator" style="display: none; font-size: 0.75rem; color: #10b981; margin-bottom: 0.75rem; text-align: center;">
+                        <i class="fas fa-check-circle"></i> <span id="autosaveText">Taslak kaydedildi</span>
+                    </div>
+
+                    <div style="display: flex; gap: 0.5rem; margin-bottom: 0.75rem;">
+                        <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="saveDraftManual()">
+                            <i class="fas fa-file-export"></i> Taslak
+                        </button>
                     </div>
 
                     <button type="submit" class="btn btn-primary" style="width: 100%;">
@@ -759,6 +791,10 @@
     document.getElementById('guideForm').addEventListener('submit', function(e) {
         document.getElementById('ContentTr').value = document.getElementById('editorTr').innerHTML;
         document.getElementById('ContentEn').value = document.getElementById('editorEn').innerHTML;
+        
+        // Clear draft on submit
+        clearDraftOnSuccess();
+        window.onbeforeunload = null;
     });
 
     // Load existing content
@@ -770,6 +806,202 @@
         
         // Initial TOC update
         updateTocPreview();
+    });
+
+    // =============================================
+    // DRAFT AUTO-SAVE SYSTEM
+    // =============================================
+    const GUIDE_ID = @Model.Id;
+    const DRAFT_KEY = 'guide_draft_edit_' + GUIDE_ID;
+    let autoSaveInterval;
+    let lastSavedContent = '';
+
+    // Get all form data as object
+    function getFormData() {
+        return {
+            id: GUIDE_ID,
+            titleTr: document.getElementById('TitleTr')?.value || '',
+            titleEn: document.getElementById('TitleEn')?.value || '',
+            summaryTr: document.getElementById('SummaryTr')?.value || '',
+            summaryEn: document.getElementById('SummaryEn')?.value || '',
+            contentTr: document.getElementById('editorTr')?.innerHTML || '',
+            contentEn: document.getElementById('editorEn')?.innerHTML || '',
+            metaDescriptionTr: document.getElementById('MetaDescriptionTr')?.value || '',
+            metaDescriptionEn: document.getElementById('MetaDescriptionEn')?.value || '',
+            seoKeywordsTr: document.getElementById('SeoKeywordsTr')?.value || '',
+            seoKeywordsEn: document.getElementById('SeoKeywordsEn')?.value || '',
+            categoryId: document.getElementById('CategoryId')?.value || '',
+            isActive: document.getElementById('IsActive')?.checked || false,
+            isFeatured: document.getElementById('IsFeatured')?.checked || false,
+            displayOrder: document.getElementById('DisplayOrder')?.value || '0',
+            featuredImageAltTr: document.getElementById('FeaturedImageAltTr')?.value || '',
+            featuredImageAltEn: document.getElementById('FeaturedImageAltEn')?.value || '',
+            savedAt: new Date().toISOString()
+        };
+    }
+
+    // Check if content has changed
+    function hasContentChanged() {
+        const currentContent = JSON.stringify(getFormData());
+        return currentContent !== lastSavedContent;
+    }
+
+    // Save draft to localStorage
+    function saveDraft(showIndicator = true) {
+        try {
+            const data = getFormData();
+            if (!data.titleTr && !data.contentTr) return;
+            
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(data));
+            lastSavedContent = JSON.stringify(data);
+            
+            if (showIndicator) {
+                showAutosaveIndicator();
+            }
+            console.log('Draft saved at', new Date().toLocaleTimeString());
+        } catch (e) {
+            console.error('Draft save error:', e);
+        }
+    }
+
+    // Manual save with feedback
+    function saveDraftManual() {
+        saveDraft(true);
+        const indicator = document.getElementById('autosaveIndicator');
+        const text = document.getElementById('autosaveText');
+        indicator.style.display = 'block';
+        indicator.style.color = '#10b981';
+        text.innerHTML = '<i class="fas fa-check"></i> Taslak kaydedildi!';
+        
+        setTimeout(() => {
+            indicator.style.display = 'none';
+        }, 3000);
+    }
+
+    // Show autosave indicator
+    function showAutosaveIndicator() {
+        const indicator = document.getElementById('autosaveIndicator');
+        const text = document.getElementById('autosaveText');
+        if (indicator) {
+            indicator.style.display = 'block';
+            text.textContent = 'Otomatik kaydedildi - ' + new Date().toLocaleTimeString('tr-TR');
+            setTimeout(() => {
+                indicator.style.display = 'none';
+            }, 2000);
+        }
+    }
+
+    // Load draft from localStorage
+    function loadDraft() {
+        try {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (!saved) return false;
+            
+            const data = JSON.parse(saved);
+            
+            if (data.titleTr) document.getElementById('TitleTr').value = data.titleTr;
+            if (data.titleEn) document.getElementById('TitleEn').value = data.titleEn;
+            if (data.summaryTr) document.getElementById('SummaryTr').value = data.summaryTr;
+            if (data.summaryEn) document.getElementById('SummaryEn').value = data.summaryEn;
+            if (data.contentTr) document.getElementById('editorTr').innerHTML = data.contentTr;
+            if (data.contentEn) document.getElementById('editorEn').innerHTML = data.contentEn;
+            if (data.metaDescriptionTr) {
+                document.getElementById('MetaDescriptionTr').value = data.metaDescriptionTr;
+                document.getElementById('metaTrCount').textContent = 160 - data.metaDescriptionTr.length;
+            }
+            if (data.metaDescriptionEn) {
+                document.getElementById('MetaDescriptionEn').value = data.metaDescriptionEn;
+                document.getElementById('metaEnCount').textContent = 160 - data.metaDescriptionEn.length;
+            }
+            if (data.seoKeywordsTr) document.getElementById('SeoKeywordsTr').value = data.seoKeywordsTr;
+            if (data.seoKeywordsEn) document.getElementById('SeoKeywordsEn').value = data.seoKeywordsEn;
+            if (data.categoryId) document.getElementById('CategoryId').value = data.categoryId;
+            if (data.isActive !== undefined) document.getElementById('IsActive').checked = data.isActive;
+            if (data.isFeatured !== undefined) document.getElementById('IsFeatured').checked = data.isFeatured;
+            if (data.displayOrder) document.getElementById('DisplayOrder').value = data.displayOrder;
+            if (data.featuredImageAltTr) document.getElementById('FeaturedImageAltTr').value = data.featuredImageAltTr;
+            if (data.featuredImageAltEn) document.getElementById('FeaturedImageAltEn').value = data.featuredImageAltEn;
+            
+            updateTocPreview();
+            document.getElementById('draftCard').style.display = 'none';
+            alert('✅ Taslak geri yüklendi!');
+            
+            return true;
+        } catch (e) {
+            console.error('Draft load error:', e);
+            return false;
+        }
+    }
+
+    // Clear draft
+    function clearDraft() {
+        if (confirm('Taslağı silmek istediğinize emin misiniz?')) {
+            localStorage.removeItem(DRAFT_KEY);
+            document.getElementById('draftCard').style.display = 'none';
+        }
+    }
+
+    // Check for existing draft on page load
+    function checkForDraft() {
+        try {
+            const saved = localStorage.getItem(DRAFT_KEY);
+            if (saved) {
+                const data = JSON.parse(saved);
+                if (data.titleTr || data.contentTr) {
+                    const savedDate = new Date(data.savedAt);
+                    const timeStr = savedDate.toLocaleDateString('tr-TR') + ' ' + savedDate.toLocaleTimeString('tr-TR');
+                    
+                    document.getElementById('draftTime').textContent = 'Kayıt: ' + timeStr;
+                    document.getElementById('draftCard').style.display = 'block';
+                }
+            }
+        } catch (e) {
+            console.error('Draft check error:', e);
+        }
+    }
+
+    // Start autosave (every 30 seconds)
+    function startAutoSave() {
+        autoSaveInterval = setInterval(() => {
+            if (hasContentChanged()) {
+                saveDraft(true);
+            }
+        }, 30000);
+    }
+
+    // Clear draft on successful form submit
+    function clearDraftOnSuccess() {
+        localStorage.removeItem(DRAFT_KEY);
+    }
+
+    // Initialize draft system
+    document.addEventListener('DOMContentLoaded', function() {
+        checkForDraft();
+        startAutoSave();
+        
+        let saveTimeout;
+        const debouncedSave = () => {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => saveDraft(false), 5000);
+        };
+        
+        document.querySelectorAll('#guideForm input, #guideForm textarea, #guideForm select').forEach(el => {
+            el.addEventListener('input', debouncedSave);
+            el.addEventListener('change', debouncedSave);
+        });
+        
+        document.getElementById('editorTr')?.addEventListener('input', debouncedSave);
+        document.getElementById('editorEn')?.addEventListener('input', debouncedSave);
+    });
+
+    // Warn before leaving page with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasContentChanged()) {
+            saveDraft(false);
+            e.preventDefault();
+            e.returnValue = 'Kaydedilmemiş değişiklikleriniz var. Sayfadan ayrılmak istediğinize emin misiniz?';
+            return e.returnValue;
+        }
     });
 
     // =============================================

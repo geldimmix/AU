@@ -49,14 +49,20 @@ builder.Services.AddScoped<IGuideService, GuideService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<ISeoTagService, SeoTagService>();
 builder.Services.AddScoped<IImageService, ImageService>();
-builder.Services.AddScoped<ITranslationService, TranslationService>();
-builder.Services.AddScoped<ICodeTranslationService, CodeTranslationService>();
 builder.Services.AddScoped<IStaticPageService, StaticPageService>();
 builder.Services.AddScoped<IVisitorLogService, VisitorLogService>();
 builder.Services.AddScoped<ISiteSettingService, SiteSettingService>();
 
-// HttpClient for external API calls
-builder.Services.AddHttpClient();
+// HttpClient for external API calls (with extended timeout for AI translation)
+builder.Services.AddHttpClient<ITranslationService, TranslationService>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(5); // 5 dakika timeout - uzun içerikler için
+});
+builder.Services.AddHttpClient<ICodeTranslationService, CodeTranslationService>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(5); // 5 dakika timeout - çoklu dil çevirisi için
+});
+builder.Services.AddHttpClient(); // Genel HTTP istekleri için
 
 var app = builder.Build();
 
