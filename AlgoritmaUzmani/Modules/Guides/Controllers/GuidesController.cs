@@ -2,8 +2,11 @@ using AlgoritmaUzmani.Models.ViewModels.Public;
 using AlgoritmaUzmani.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 
-namespace AlgoritmaUzmani.Controllers;
+namespace AlgoritmaUzmani.Modules.Guides.Controllers;
 
+/// <summary>
+/// Rehberler modülü controller'ı
+/// </summary>
 public class GuidesController : Controller
 {
     private readonly ICategoryService _categoryService;
@@ -51,10 +54,9 @@ public class GuidesController : Controller
             Language = language
         };
 
-        // Log visit
         await LogVisitAsync(language == "en" ? "/en/guides" : "/rehberler");
 
-        return View("Index", viewModel);
+        return View("~/Modules/Guides/Views/Guides/Index.cshtml", viewModel);
     }
 
     // GET: /rehberler/{categorySlug}
@@ -76,7 +78,6 @@ public class GuidesController : Controller
         var category = await _categoryService.GetBySlugAsync(categorySlug, language);
         if (category == null)
         {
-            // Try the other language
             category = await _categoryService.GetBySlugAsync(categorySlug, language == "en" ? "tr" : "en");
         }
 
@@ -96,11 +97,10 @@ public class GuidesController : Controller
             Language = language
         };
 
-        // Log visit
         var slug = language == "en" && !string.IsNullOrEmpty(category.SlugEn) ? category.SlugEn : category.SlugTr;
         await LogVisitAsync(language == "en" ? $"/en/guides/{slug}" : $"/rehberler/{slug}");
 
-        return View("Category", viewModel);
+        return View("~/Modules/Guides/Views/Guides/Category.cshtml", viewModel);
     }
 
     // GET: /rehberler/{categorySlug}/{guideSlug}
@@ -119,7 +119,6 @@ public class GuidesController : Controller
 
     private async Task<IActionResult> GetDetailView(string categorySlug, string guideSlug, string language)
     {
-        // First verify the category exists
         var category = await _categoryService.GetBySlugAsync(categorySlug, language);
         if (category == null)
         {
@@ -131,7 +130,6 @@ public class GuidesController : Controller
             return NotFound();
         }
 
-        // Get the guide
         var guide = await _guideService.GetBySlugAsync(guideSlug, language);
         if (guide == null)
         {
@@ -143,16 +141,10 @@ public class GuidesController : Controller
             return NotFound();
         }
 
-        // Increment view count
         await _guideService.IncrementViewCountAsync(guide.Id);
 
-        // Get related guides
         var relatedGuides = await _guideService.GetRelatedGuidesAsync(guide.Id);
-
-        // Get all categories for sidebar
         var allCategories = await _categoryService.GetAllAsync(true);
-
-        // Get code blocks
         var codeBlocks = await _guideService.GetCodeBlocksByGuideIdAsync(guide.Id);
 
         var viewModel = new GuideDetailViewModel
@@ -165,12 +157,11 @@ public class GuidesController : Controller
             Language = language
         };
 
-        // Log visit
         var catSlug = language == "en" && !string.IsNullOrEmpty(category.SlugEn) ? category.SlugEn : category.SlugTr;
         var gSlug = language == "en" && !string.IsNullOrEmpty(guide.SlugEn) ? guide.SlugEn : guide.SlugTr;
         await LogVisitAsync(language == "en" ? $"/en/guides/{catSlug}/{gSlug}" : $"/rehberler/{catSlug}/{gSlug}");
 
-        return View("Detail", viewModel);
+        return View("~/Modules/Guides/Views/Guides/Detail.cshtml", viewModel);
     }
 
     private async Task LogVisitAsync(string path)
@@ -189,3 +180,8 @@ public class GuidesController : Controller
         }
     }
 }
+
+
+
+
+

@@ -1,0 +1,908 @@
+@model AlgoritmaUzmani.Models.ViewModels.Public.GuideDetailViewModel
+@{
+    Layout = "_Layout";
+    var isEnglish = Model.Language == "en";
+    var categoryName = isEnglish && !string.IsNullOrEmpty(Model.Category.NameEn) ? Model.Category.NameEn : Model.Category.NameTr;
+    var categorySlug = isEnglish && !string.IsNullOrEmpty(Model.Category.SlugEn) ? Model.Category.SlugEn : Model.Category.SlugTr;
+}
+
+@section Styles {
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css" rel="stylesheet" />
+    <style>
+        /* Override main layout for detail page with TOC */
+        .detail-layout {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: grid;
+            grid-template-columns: 240px 1fr 260px;
+            gap: 2rem;
+            min-height: calc(100vh - 64px - 200px);
+        }
+
+        .guide-header {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .guide-header-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: center;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+        .guide-header-meta span {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .guide-tags-detail {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .guide-tag-detail {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 6px;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+        }
+
+        /* ============================================
+           TABLE OF CONTENTS - ApyHub Style
+        ============================================ */
+        .toc-sidebar {
+            position: sticky;
+            top: 80px;
+            height: fit-content;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            padding: 1rem 0;
+        }
+
+        .toc-container {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .toc-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .toc-header-icon {
+            font-size: 1rem;
+            color: var(--text-light);
+        }
+
+        .toc-title {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .toc-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .toc-item {
+            margin: 0;
+        }
+
+        .toc-link {
+            display: block;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: var(--text-light);
+            border-radius: 6px;
+            border-left: 2px solid transparent;
+            margin-left: -2px;
+            transition: all 0.15s ease;
+            line-height: 1.4;
+        }
+
+        .toc-link:hover {
+            color: var(--text);
+            background: var(--bg-soft);
+        }
+
+        .toc-link.active {
+            color: var(--primary-dark);
+            background: var(--primary-light);
+            border-left-color: var(--primary);
+            font-weight: 500;
+        }
+
+        .toc-link.toc-h3 {
+            padding-left: 1.5rem;
+            font-size: 0.8125rem;
+        }
+
+        .toc-link.toc-h4 {
+            padding-left: 2.25rem;
+            font-size: 0.75rem;
+        }
+
+        .toc-empty {
+            padding: 1rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        /* Code Block Styles */
+        .code-block-multilang {
+            margin: 1.5rem 0;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .code-tabs {
+            display: flex;
+            background: linear-gradient(180deg, var(--bg-soft) 0%, #f1f5f9 100%);
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto;
+        }
+
+        .code-tab {
+            padding: 0.875rem 1.5rem;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-weight: 500;
+            color: var(--text-light);
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+
+        .code-tab:hover {
+            background: rgba(245, 184, 0, 0.1);
+            color: var(--primary-dark);
+        }
+
+        .code-tab.active {
+            background: var(--bg);
+            color: var(--primary-dark);
+            border-bottom-color: var(--primary);
+            font-weight: 600;
+        }
+
+        .code-content {
+            position: relative;
+        }
+
+        .code-content pre {
+            margin: 0 !important;
+            border-radius: 0 !important;
+        }
+
+        .code-content pre code {
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace !important;
+            font-size: 0.875rem;
+            line-height: 1.7;
+        }
+
+        /* Regular code blocks */
+        .guide-content pre {
+            position: relative;
+            margin: 1.5rem 0;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .guide-content pre code {
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace !important;
+            font-size: 0.875rem;
+        }
+
+        /* Make headings have scroll margin for TOC */
+        .guide-content h2,
+        .guide-content h3,
+        .guide-content h4 {
+            scroll-margin-top: 100px;
+        }
+
+        /* Prism.js Line Numbers Styling */
+        .line-numbers .line-numbers-rows {
+            border-right: 1px solid #4a5568;
+            background: #2d3748;
+        }
+
+        .line-numbers-rows > span:before {
+            color: #718096;
+            font-weight: 500;
+        }
+
+        /* Prism.js Toolbar Styling */
+        div.code-toolbar {
+            position: relative;
+            margin: 1.5rem 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        div.code-toolbar > .toolbar {
+            opacity: 1;
+            right: 0.5rem;
+            top: 0.5rem;
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 0.5rem;
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item > button,
+        div.code-toolbar > .toolbar > .toolbar-item > span,
+        div.code-toolbar > .toolbar > .toolbar-item > a {
+            background: rgba(255, 255, 255, 0.95);
+            color: #4a5568;
+            padding: 0.5rem 0.875rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item > button:hover,
+        div.code-toolbar > .toolbar > .toolbar-item > span:hover,
+        div.code-toolbar > .toolbar > .toolbar-item > a:hover {
+            background: var(--bg);
+            color: var(--primary-dark);
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(245,184,0,0.2);
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item > button:focus,
+        div.code-toolbar > .toolbar > .toolbar-item > a:focus {
+            outline: none;
+        }
+
+        /* Show Language Badge */
+        div.code-toolbar > .toolbar .toolbar-item > span.language-label {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: var(--secondary);
+            border: none;
+            padding: 0.5rem 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            cursor: default;
+            box-shadow: 0 2px 8px rgba(245,184,0,0.3);
+        }
+
+        /* Copy Button Success State */
+        div.code-toolbar > .toolbar > .toolbar-item > button.copy-to-clipboard-button {
+            position: relative;
+        }
+
+        div.code-toolbar > .toolbar > .toolbar-item > button.copy-to-clipboard-button[data-copy-state="copy-success"] {
+            background: #10b981;
+            color: white;
+            border-color: #10b981;
+        }
+
+        /* Smooth Scrollbar for Code */
+        pre[class*="language-"]::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        pre[class*="language-"]::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+
+        pre[class*="language-"]::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+
+        pre[class*="language-"]::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+
+        /* Enhanced Code Block */
+        code[class*="language-"],
+        pre[class*="language-"] {
+            text-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* Token Enhancements */
+        .token.comment,
+        .token.prolog,
+        .token.doctype,
+        .token.cdata {
+            font-style: italic;
+        }
+
+        .token.namespace {
+            opacity: 0.8;
+        }
+
+        .token.important,
+        .token.bold {
+            font-weight: 700;
+        }
+
+        .token.italic {
+            font-style: italic;
+        }
+
+        .token.entity {
+            cursor: help;
+        }
+
+        /* Back button style */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-light);
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+
+        .back-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary-dark);
+            background: var(--primary-light);
+        }
+
+        /* Related guides in detail page */
+        .related-guide-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            transition: all 0.15s ease;
+        }
+
+        .related-guide-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(245, 184, 0, 0.1);
+        }
+
+        .related-guide-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            transition: color 0.15s ease;
+        }
+
+        .related-guide-card:hover .related-guide-title {
+            color: var(--primary-dark);
+        }
+
+        .related-guide-summary {
+            font-size: 0.875rem;
+            color: var(--text-light);
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* Responsive */
+        @@media (max-width: 1200px) {
+            .detail-layout {
+                grid-template-columns: 220px 1fr;
+            }
+            .toc-sidebar {
+                display: none;
+            }
+        }
+
+        @@media (max-width: 900px) {
+            .detail-layout {
+                grid-template-columns: 1fr;
+                padding: 0 1rem;
+            }
+        }
+    </style>
+}
+
+<div class="detail-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-header-icon">☰</span>
+            <span class="sidebar-title">@(isEnglish ? "Guide Catalog" : "Rehber Kataloğu")</span>
+        </div>
+        
+        <div class="category-section open">
+            <div class="category-section-title">
+                <span>@(isEnglish ? "Categories" : "Kategoriler")</span>
+                <span class="chevron">▼</span>
+            </div>
+            <ul class="category-list">
+                @foreach (var category in Model.AllCategories)
+                {
+                    var catName = isEnglish && !string.IsNullOrEmpty(category.NameEn) ? category.NameEn : category.NameTr;
+                    var catSlug = isEnglish && !string.IsNullOrEmpty(category.SlugEn) ? category.SlugEn : category.SlugTr;
+                    var isActive = category.Id == Model.Category.Id;
+                    var guideCount = category.Guides?.Count(g => g.IsActive) ?? 0;
+                    <li class="category-item">
+                        <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@catSlug" class="category-link @(isActive ? "active" : "")">
+                            <span class="category-icon">@category.Icon</span>
+                            <span class="category-name">@catName</span>
+                            <span class="category-count">@guideCount</span>
+                        </a>
+                    </li>
+                }
+            </ul>
+        </div>
+    </aside>
+
+    <!-- Content -->
+    <main class="content">
+        <nav class="breadcrumb">
+            <a href="@(isEnglish ? "/en" : "/")">@(isEnglish ? "Home" : "Ana Sayfa")</a>
+            <span class="breadcrumb-sep">›</span>
+            <a href="@(isEnglish ? "/en/guides" : "/rehberler")">@(isEnglish ? "Guides" : "Rehberler")</a>
+            <span class="breadcrumb-sep">›</span>
+            <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@categorySlug">@categoryName</a>
+            <span class="breadcrumb-sep">›</span>
+            <span>@Model.Title</span>
+        </nav>
+
+        <article class="guide-content">
+            <header class="guide-header">
+                <div class="guide-tags-detail">
+                    @foreach (var tag in Model.Guide.GuideTags)
+                    {
+                        var tagName = isEnglish && !string.IsNullOrEmpty(tag.Tag.NameEn) ? tag.Tag.NameEn : tag.Tag.NameTr;
+                        <span class="guide-tag-detail" style="@(!string.IsNullOrEmpty(tag.Tag.Color) ? $"background:{tag.Tag.Color};color:#fff;" : "")">
+                            @tagName
+                        </span>
+                    }
+                </div>
+
+                <h1>@Model.Title</h1>
+
+                @if (!string.IsNullOrEmpty(Model.Guide.FeaturedImage))
+                {
+                    var altText = isEnglish && !string.IsNullOrEmpty(Model.Guide.FeaturedImageAltEn) 
+                        ? Model.Guide.FeaturedImageAltEn 
+                        : Model.Guide.FeaturedImageAltTr;
+                    <img src="/appdata/@Model.Guide.FeaturedImage" alt="@altText" style="width: 100%; border-radius: 12px; margin: 1.5rem 0; box-shadow: 0 4px 16px rgba(0,0,0,0.1);" />
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Summary))
+                {
+                    <p class="page-description">@Model.Summary</p>
+                }
+
+                <div class="guide-header-meta">
+                    <span>@Model.Category.Icon @categoryName</span>
+                    <span>📅 @Model.Guide.CreatedAt.ToString("dd MMMM yyyy")</span>
+                    <span>👁️ @Model.Guide.ViewCount.ToString("N0") @(isEnglish ? "views" : "görüntülenme")</span>
+                </div>
+            </header>
+
+            <div id="guideContent">
+                @Html.Raw(Model.Content)
+            </div>
+
+            @* Render Code Blocks from Database *@
+            @if (Model.CodeBlocks.Any())
+            {
+                var jsonOptions = new System.Text.Json.JsonSerializerOptions 
+                { 
+                    ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles 
+                };
+                var codeBlocksJson = Model.CodeBlocks.Select(cb => new { 
+                    cb.BlockId, 
+                    cb.SourceLanguage, 
+                    cb.SourceCode, 
+                    cb.Translations, 
+                    cb.DisplayOrder, 
+                    cb.Title 
+                });
+                <input type="hidden" id="codeBlocksData" value='@System.Text.Json.JsonSerializer.Serialize(codeBlocksJson, jsonOptions)' />
+            }
+
+            @if (Model.RelatedGuides.Any())
+            {
+                <section class="related-section">
+                    <h2 class="related-title">@(isEnglish ? "Related Guides" : "İlgili Rehberler")</h2>
+                    <div class="guide-grid">
+                        @foreach (var guide in Model.RelatedGuides)
+                        {
+                            var relTitle = isEnglish && !string.IsNullOrEmpty(guide.TitleEn) ? guide.TitleEn : guide.TitleTr;
+                            var relSummary = isEnglish && !string.IsNullOrEmpty(guide.SummaryEn) ? guide.SummaryEn : guide.SummaryTr;
+                            var relCatSlug = isEnglish && !string.IsNullOrEmpty(guide.Category?.SlugEn) ? guide.Category.SlugEn : guide.Category?.SlugTr;
+                            var relGuideSlug = isEnglish && !string.IsNullOrEmpty(guide.SlugEn) ? guide.SlugEn : guide.SlugTr;
+                            var relCatIcon = guide.Category?.Icon ?? "📚";
+
+                            <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@relCatSlug/@relGuideSlug" class="related-guide-card">
+                                <div style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.75rem;">
+                                    <div class="guide-icon">@relCatIcon</div>
+                                    <h3 class="related-guide-title">@relTitle</h3>
+                                </div>
+                                @if (!string.IsNullOrEmpty(relSummary))
+                                {
+                                    <p class="related-guide-summary">@relSummary</p>
+                                }
+                            </a>
+                        }
+                    </div>
+                </section>
+            }
+
+            <!-- Back to Category -->
+            <div style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
+                <a href="@(isEnglish ? "/en/guides/" : "/rehberler/")@categorySlug" class="back-btn">
+                    ← @categoryName
+                </a>
+            </div>
+        </article>
+    </main>
+
+    <!-- Table of Contents Sidebar -->
+    <aside class="toc-sidebar">
+        <div class="toc-container">
+            <div class="toc-header">
+                <span class="toc-header-icon">☰</span>
+                <span class="toc-title">@(isEnglish ? "Table of contents" : "İçindekiler")</span>
+            </div>
+            <nav id="tableOfContents">
+                <ul class="toc-list" id="tocList">
+                    <!-- TOC items will be generated by JavaScript -->
+                </ul>
+            </nav>
+        </div>
+    </aside>
+</div>
+
+@section Scripts {
+    <!-- Prism.js Core with defer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" data-manual defer></script>
+    
+    <!-- Prism.js Autoloader -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js" defer></script>
+    
+    <!-- Essential Plugins -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/copy-to-clipboard/prism-copy-to-clipboard.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/show-language/prism-show-language.min.js" defer></script>
+
+    <script defer>
+        // =============================================
+        // TABLE OF CONTENTS GENERATOR
+        // =============================================
+        function generateTableOfContents() {
+            const content = document.getElementById('guideContent');
+            const tocList = document.getElementById('tocList');
+            
+            if (!content || !tocList) return;
+
+            // Find all headings (h2, h3, h4)
+            const headings = content.querySelectorAll('h2, h3, h4');
+            
+            if (headings.length === 0) {
+                tocList.innerHTML = '<li class="toc-empty">@(isEnglish ? "No sections found" : "Bölüm bulunamadı")</li>';
+                return;
+            }
+
+            let tocHTML = '';
+            let headingIndex = 0;
+
+            headings.forEach((heading, index) => {
+                // Generate unique ID for heading if not exists
+                if (!heading.id) {
+                    heading.id = 'section-' + index;
+                }
+
+                const level = heading.tagName.toLowerCase();
+                const text = heading.textContent.trim();
+                const levelClass = 'toc-' + level;
+
+                tocHTML += `
+                    <li class="toc-item">
+                        <a href="#${heading.id}" class="toc-link ${levelClass}" data-target="${heading.id}">
+                            ${text}
+                        </a>
+                    </li>
+                `;
+            });
+
+            tocList.innerHTML = tocHTML;
+
+            // Initialize scroll spy
+            initScrollSpy();
+        }
+
+        // =============================================
+        // SCROLL SPY - Highlight active TOC item
+        // =============================================
+        function initScrollSpy() {
+            const tocLinks = document.querySelectorAll('.toc-link');
+            const headings = [];
+
+            tocLinks.forEach(link => {
+                const targetId = link.getAttribute('data-target');
+                const target = document.getElementById(targetId);
+                if (target) {
+                    headings.push({ element: target, link: link });
+                }
+
+                // Smooth scroll on click
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = document.getElementById(targetId);
+                    if (target) {
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        // Update URL hash without jumping
+                        history.pushState(null, null, '#' + targetId);
+                    }
+                });
+            });
+
+            // Scroll spy function
+            function updateActiveLink() {
+                const scrollPosition = window.scrollY + 120; // Offset for sticky header
+
+                let activeHeading = null;
+
+                headings.forEach(({ element, link }) => {
+                    const rect = element.getBoundingClientRect();
+                    const elementTop = rect.top + window.scrollY;
+
+                    if (scrollPosition >= elementTop) {
+                        activeHeading = link;
+                    }
+                });
+
+                // Remove all active classes
+                tocLinks.forEach(link => link.classList.remove('active'));
+
+                // Add active class to current heading
+                if (activeHeading) {
+                    activeHeading.classList.add('active');
+                } else if (tocLinks.length > 0) {
+                    // If at top, activate first item
+                    tocLinks[0].classList.add('active');
+                }
+            }
+
+            // Throttle scroll events
+            let ticking = false;
+            window.addEventListener('scroll', function() {
+                if (!ticking) {
+                    window.requestAnimationFrame(function() {
+                        updateActiveLink();
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            });
+
+            // Initial call
+            updateActiveLink();
+        }
+
+        // =============================================
+        // PRISM.JS INITIALIZATION
+        // =============================================
+        function initializePrism() {
+            if (typeof Prism === 'undefined') {
+                setTimeout(initializePrism, 50);
+                return;
+            }
+            
+            console.log('✅ Prism.js loaded');
+            fixOldCodeBlocks();
+            renderCodeBlocksFromDatabase();
+            Prism.highlightAll();
+            console.log('✅ Highlighted', document.querySelectorAll('pre code').length, 'code blocks');
+        }
+
+        function fixOldCodeBlocks() {
+            document.querySelectorAll('pre code').forEach(function(codeElement) {
+                const hasLanguageClass = Array.from(codeElement.classList).some(cls => cls.startsWith('language-'));
+                
+                if (!hasLanguageClass) {
+                    const text = codeElement.textContent;
+                    let detectedLang = 'javascript';
+                    
+                    if (text.includes('def ') && text.includes(':')) detectedLang = 'python';
+                    else if (text.includes('struct ') && text.includes(';')) detectedLang = 'c';
+                    else if (text.includes('class ') && text.includes('public ') && text.includes('{')) detectedLang = 'java';
+                    else if (text.includes('func ') && text.includes('->')) detectedLang = 'go';
+                    else if (text.includes('<?php')) detectedLang = 'php';
+                    else if (text.includes('SELECT ') || text.includes('FROM ')) detectedLang = 'sql';
+                    
+                    codeElement.className = 'language-' + detectedLang;
+                    
+                    if (!codeElement.parentElement.classList.contains('line-numbers')) {
+                        codeElement.parentElement.classList.add('line-numbers');
+                        codeElement.parentElement.setAttribute('data-start', '1');
+                    }
+                }
+            });
+        }
+
+        function renderCodeBlocksFromDatabase() {
+            const codeBlocksInput = document.getElementById('codeBlocksData');
+            if (!codeBlocksInput) return;
+
+            try {
+                const codeBlocks = JSON.parse(codeBlocksInput.value);
+                if (!codeBlocks || codeBlocks.length === 0) return;
+
+                const content = document.getElementById('guideContent');
+                if (!content) return;
+
+                codeBlocks.forEach(function(block) {
+                    const placeholder = content.querySelector('[data-code-id="' + block.BlockId + '"]');
+                    if (placeholder) {
+                        const translations = JSON.parse(block.Translations);
+                        placeholder.innerHTML = renderCodeBlock(block.BlockId, translations);
+                        
+                        setTimeout(function() {
+                            placeholder.querySelectorAll('code').forEach(function(code) {
+                                Prism.highlightElement(code);
+                            });
+                        }, 50);
+                    }
+                });
+            } catch (e) {
+                console.error('Error rendering code blocks:', e);
+            }
+        }
+
+        function renderCodeBlock(blockId, translations) {
+            if (!translations || Object.keys(translations).length === 0) return '';
+
+            let html = '<div class="code-tabs">';
+            let contentHtml = '';
+            let first = true;
+
+            for (const [lang, code] of Object.entries(translations)) {
+                const displayName = getLanguageDisplayName(lang);
+                
+                html += '<button type="button" class="code-tab' + (first ? ' active' : '') + '" ';
+                html += 'data-lang="' + lang + '" ';
+                html += 'onclick="switchCodeTab(\'' + blockId + '\', \'' + lang + '\')">';
+                html += displayName + '</button>';
+
+                contentHtml += '<div class="code-content" data-lang="' + lang + '" ';
+                contentHtml += 'style="display: ' + (first ? 'block' : 'none') + ';">';
+                contentHtml += '<pre class="line-numbers" style="margin: 0;" data-start="1">';
+                contentHtml += '<code class="language-' + lang + '">';
+                contentHtml += code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                contentHtml += '</code></pre></div>';
+
+                first = false;
+            }
+
+            html += '</div>' + contentHtml;
+            return html;
+        }
+
+        function getLanguageDisplayName(lang) {
+            const names = {
+                'javascript': 'JavaScript', 'python': 'Python', 'java': 'Java',
+                'csharp': 'C#', 'cpp': 'C++', 'c': 'C', 'go': 'Go', 'rust': 'Rust',
+                'php': 'PHP', 'ruby': 'Ruby', 'swift': 'Swift', 'kotlin': 'Kotlin',
+                'typescript': 'TypeScript', 'dart': 'Dart', 'scala': 'Scala',
+                'r': 'R', 'perl': 'Perl', 'lua': 'Lua', 'haskell': 'Haskell',
+                'elixir': 'Elixir', 'clojure': 'Clojure', 'fsharp': 'F#',
+                'objectivec': 'Objective-C', 'sql': 'SQL', 'html': 'HTML',
+                'css': 'CSS', 'bash': 'Bash/Shell', 'powershell': 'PowerShell',
+                'json': 'JSON', 'yaml': 'YAML', 'xml': 'XML'
+            };
+            return names[lang] || lang.toUpperCase();
+        }
+
+        function switchCodeTab(codeId, language) {
+            const container = document.querySelector('[data-code-id="' + codeId + '"]');
+            if (!container) return;
+
+            container.querySelectorAll('.code-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.getAttribute('data-lang') === language);
+            });
+
+            let visibleContent = null;
+            container.querySelectorAll('.code-content').forEach(content => {
+                const isVisible = content.getAttribute('data-lang') === language;
+                content.style.display = isVisible ? 'block' : 'none';
+                if (isVisible) visibleContent = content;
+            });
+
+            if (visibleContent) {
+                setTimeout(() => {
+                    visibleContent.querySelectorAll('code').forEach(function(code) {
+                        Prism.highlightElement(code);
+                    });
+                }, 50);
+            }
+        }
+
+        // Category section toggle
+        document.querySelectorAll('.category-section-title').forEach(function(title) {
+            title.addEventListener('click', function() {
+                this.parentElement.classList.toggle('open');
+            });
+        });
+
+        // =============================================
+        // INITIALIZATION
+        // =============================================
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                generateTableOfContents();
+                initializePrism();
+            });
+        } else {
+            generateTableOfContents();
+            initializePrism();
+        }
+    </script>
+
+    <!-- Schema.org structured data for SEO -->
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "Article",
+        "headline": "@Model.Title",
+        "description": "@Model.MetaDescription",
+        "datePublished": "@Model.Guide.CreatedAt.ToString("yyyy-MM-dd")",
+        "dateModified": "@(Model.Guide.UpdatedAt?.ToString("yyyy-MM-dd") ?? Model.Guide.CreatedAt.ToString("yyyy-MM-dd"))",
+        "author": {
+            "@@type": "Organization",
+            "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")"
+        },
+        "publisher": {
+            "@@type": "Organization",
+            "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")"
+        },
+        "mainEntityOfPage": {
+            "@@type": "WebPage",
+            "@@id": "@Context.Request.Scheme://@Context.Request.Host@ViewBag.CanonicalUrl"
+        }
+        @if (ViewBag.SeoTags != null && ((List<string>)ViewBag.SeoTags).Any())
+        {
+            <text>,
+        "keywords": "@string.Join(", ", (List<string>)ViewBag.SeoTags)"</text>
+        }
+    }
+    </script>
+}

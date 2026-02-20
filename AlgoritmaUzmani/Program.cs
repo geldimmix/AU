@@ -1,6 +1,7 @@
 using AlgoritmaUzmani.Data;
 using AlgoritmaUzmani.Services;
 using AlgoritmaUzmani.Services.Interfaces;
+using AlgoritmaUzmani.Modules.Guides;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
@@ -9,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews()
+    .AddApplicationPart(typeof(AlgoritmaUzmani.Modules.Guides.Controllers.GuidesController).Assembly)
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
@@ -21,6 +23,9 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Distributed Cache (Memory Cache)
 builder.Services.AddDistributedMemoryCache();
+
+// Memory Cache for CacheService
+builder.Services.AddMemoryCache();
 
 // Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -36,7 +41,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     });
 
-// Register Services
+// Register Core Services
 builder.Services.AddScoped<ICacheService, CacheService>();
 builder.Services.AddScoped<IAdminAuthService, AdminAuthService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
@@ -70,6 +75,10 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Map module routes
+app.MapGuidesModule();
+
+// Default route
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
