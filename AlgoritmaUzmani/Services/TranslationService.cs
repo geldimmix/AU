@@ -40,19 +40,29 @@ public class TranslationService : ITranslationService
                     new
                     {
                         role = "system",
-                        content = @"You are a professional translator specializing in technical content. Your task is to translate Turkish text to English.
+                        content = @"You are a professional Turkish to English translator for technical documentation.
 
-CRITICAL RULES:
-1. PRESERVE ALL HTML TAGS EXACTLY as they are (<h2>, <h3>, <p>, <strong>, <em>, <ul>, <li>, <pre>, <code>, etc.)
-2. Only translate the TEXT CONTENT between HTML tags
-3. Keep all HTML attributes unchanged (class, style, id, etc.)
-4. Maintain the exact same document structure
-5. Do not add or remove any HTML tags
-6. Output ONLY the translated content, no explanations
+ABSOLUTE RULES - NEVER BREAK THESE:
+1. Return ONLY the translated HTML - no explanations, no markdown, no code blocks
+2. PRESERVE ALL HTML TAGS EXACTLY: <h1>, <h2>, <h3>, <h4>, <p>, <ul>, <li>, <ol>, <strong>, <em>, <code>, <pre>, <blockquote>, <a>, <img>, <table>, <tr>, <td>, <th>, <div>, <span>, etc.
+3. HTML tags must remain as literal HTML, never escaped or encoded
+4. Only translate the text BETWEEN tags
+5. Keep ALL attributes unchanged (class, id, href, src, style, etc.)
+6. Keep code inside <code> and <pre> tags UNTRANSLATED
+7. Keep URLs, email addresses, and technical terms as-is
+8. Maintain exact whitespace and line breaks
 
-Example:
-Input: <h2>Veri Yapıları Nedir?</h2><p>Veri yapıları önemlidir.</p>
-Output: <h2>What are Data Structures?</h2><p>Data structures are important.</p>"
+EXAMPLES:
+Input: <h2>1. Giriş</h2><p>Bu bir <strong>örnek</strong> metindir.</p>
+Output: <h2>1. Introduction</h2><p>This is an <strong>example</strong> text.</p>
+
+Input: <h3>Veri Yapıları</h3><ul><li>Diziler</li><li>Bağlı Listeler</li></ul>
+Output: <h3>Data Structures</h3><ul><li>Arrays</li><li>Linked Lists</li></ul>
+
+Input: <pre><code>def hello(): print('Merhaba')</code></pre>
+Output: <pre><code>def hello(): print('Merhaba')</code></pre>
+
+RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE."
                     },
                     new
                     {
@@ -79,9 +89,33 @@ Output: <h2>What are Data Structures?</h2><p>Data structures are important.</p>"
                 .GetProperty("choices")[0]
                 .GetProperty("message")
                 .GetProperty("content")
-                .GetString();
+                .GetString() ?? string.Empty;
 
-            return translatedText ?? string.Empty;
+            // Post-process: Fix any accidentally escaped HTML tags
+            translatedText = translatedText
+                .Replace("&lt;", "<")
+                .Replace("&gt;", ">")
+                .Replace("&quot;", "\"")
+                .Replace("&amp;", "&")
+                .Replace("&#39;", "'");
+            
+            // Remove markdown code block wrappers if AI added them
+            if (translatedText.StartsWith("```html"))
+            {
+                translatedText = translatedText.Substring(7);
+                if (translatedText.EndsWith("```"))
+                    translatedText = translatedText.Substring(0, translatedText.Length - 3);
+            }
+            else if (translatedText.StartsWith("```"))
+            {
+                var firstNewLine = translatedText.IndexOf('\n');
+                if (firstNewLine > 0)
+                    translatedText = translatedText.Substring(firstNewLine + 1);
+                if (translatedText.EndsWith("```"))
+                    translatedText = translatedText.Substring(0, translatedText.Length - 3);
+            }
+
+            return translatedText.Trim();
         }
         catch (Exception ex)
         {

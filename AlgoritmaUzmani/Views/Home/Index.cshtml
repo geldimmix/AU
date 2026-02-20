@@ -199,4 +199,42 @@
         });
     });
 </script>
+
+<!-- Schema.org Organization -->
+<script type="application/ld+json">
+{
+    "@@context": "https://schema.org",
+    "@@type": "Organization",
+    "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")",
+    "url": "@Context.Request.Scheme://@Context.Request.Host",
+    "logo": "@Context.Request.Scheme://@Context.Request.Host/images/favicon.svg",
+    "description": "@(isEnglish ? "Comprehensive guides on algorithms, data structures, and software architecture." : "Algoritmalar, veri yapıları ve yazılım mimarisi üzerine kapsamlı rehberler.")",
+    "sameAs": [
+        "https://x.com/algoritmauzmani",
+        "https://www.youtube.com/@@AlgoritmaUzman",
+        "https://instagram.com/algoritmauzman"
+    ],
+    "contactPoint": {
+        "@@type": "ContactPoint",
+        "email": "info@algoritmauzmani.com",
+        "contactType": "customer service"
+    }
+}
+</script>
+
+<!-- Schema.org WebSite with SearchAction -->
+<script type="application/ld+json">
+{
+    "@@context": "https://schema.org",
+    "@@type": "WebSite",
+    "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")",
+    "url": "@Context.Request.Scheme://@Context.Request.Host",
+    "potentialAction": {
+        "@@type": "SearchAction",
+        "target": "@Context.Request.Scheme://@Context.Request.Host@(isEnglish ? "/en/guides?q=" : "/rehberler?q="){search_term_string}",
+        "query-input": "required name=search_term_string"
+    },
+    "inLanguage": ["tr", "en"]
+}
+</script>
 }

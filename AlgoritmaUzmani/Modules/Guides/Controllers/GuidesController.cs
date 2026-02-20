@@ -159,6 +159,17 @@ public class GuidesController : Controller
 
         var catSlug = language == "en" && !string.IsNullOrEmpty(category.SlugEn) ? category.SlugEn : category.SlugTr;
         var gSlug = language == "en" && !string.IsNullOrEmpty(guide.SlugEn) ? guide.SlugEn : guide.SlugTr;
+        
+        // SEO ViewBag
+        ViewBag.Title = viewModel.Title;
+        ViewBag.MetaDescription = viewModel.MetaDescription;
+        ViewBag.MetaKeywords = viewModel.Keywords;
+        ViewBag.Language = language;
+        ViewBag.CanonicalUrl = language == "en" ? $"/en/guides/{catSlug}/{gSlug}" : $"/rehberler/{catSlug}/{gSlug}";
+        ViewBag.AlternateUrl = language == "en" ? $"/rehberler/{category.SlugTr}/{guide.SlugTr}" : $"/en/guides/{category.SlugEn ?? category.SlugTr}/{guide.SlugEn ?? guide.SlugTr}";
+        ViewBag.OgType = "article";
+        ViewBag.OgImage = !string.IsNullOrEmpty(guide.FeaturedImage) ? $"/appdata/{guide.FeaturedImage}" : null;
+        
         await LogVisitAsync(language == "en" ? $"/en/guides/{catSlug}/{gSlug}" : $"/rehberler/{catSlug}/{gSlug}");
 
         return View("~/Modules/Guides/Views/Guides/Detail.cshtml", viewModel);

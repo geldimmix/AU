@@ -1,0 +1,22 @@
+{
+  "name": "Algoritma Uzmanı",
+  "short_name": "AlgoritmaUzmanı",
+  "description": "Veri yapıları, algoritmalar ve yazılım mimarisi üzerine kapsamlı rehberler",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f5b800",
+  "icons": [
+    {
+      "src": "/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
+

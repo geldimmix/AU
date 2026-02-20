@@ -877,7 +877,7 @@
         }
     </script>
 
-    <!-- Schema.org structured data for SEO -->
+    <!-- Schema.org Article -->
     <script type="application/ld+json">
     {
         "@@context": "https://schema.org",
@@ -888,21 +888,64 @@
         "dateModified": "@(Model.Guide.UpdatedAt?.ToString("yyyy-MM-dd") ?? Model.Guide.CreatedAt.ToString("yyyy-MM-dd"))",
         "author": {
             "@@type": "Organization",
-            "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")"
+            "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")",
+            "url": "@Context.Request.Scheme://@Context.Request.Host"
         },
         "publisher": {
             "@@type": "Organization",
-            "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")"
+            "name": "@(isEnglish ? "Algorithm Expert" : "Algoritma Uzmanı")",
+            "logo": {
+                "@@type": "ImageObject",
+                "url": "@Context.Request.Scheme://@Context.Request.Host/images/favicon.svg"
+            }
         },
         "mainEntityOfPage": {
             "@@type": "WebPage",
             "@@id": "@Context.Request.Scheme://@Context.Request.Host@ViewBag.CanonicalUrl"
+        }
+        @if (!string.IsNullOrEmpty(Model.Guide.FeaturedImage))
+        {
+            <text>,
+        "image": "@Context.Request.Scheme://@Context.Request.Host/appdata/@Model.Guide.FeaturedImage"</text>
         }
         @if (ViewBag.SeoTags != null && ((List<string>)ViewBag.SeoTags).Any())
         {
             <text>,
         "keywords": "@string.Join(", ", (List<string>)ViewBag.SeoTags)"</text>
         }
+    }
+    </script>
+
+    <!-- Schema.org BreadcrumbList -->
+    <script type="application/ld+json">
+    {
+        "@@context": "https://schema.org",
+        "@@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@@type": "ListItem",
+                "position": 1,
+                "name": "@(isEnglish ? "Home" : "Ana Sayfa")",
+                "item": "@Context.Request.Scheme://@Context.Request.Host@(isEnglish ? "/en" : "/")"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 2,
+                "name": "@(isEnglish ? "Guides" : "Rehberler")",
+                "item": "@Context.Request.Scheme://@Context.Request.Host@(isEnglish ? "/en/guides" : "/rehberler")"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 3,
+                "name": "@(isEnglish && !string.IsNullOrEmpty(Model.Category.NameEn) ? Model.Category.NameEn : Model.Category.NameTr)",
+                "item": "@Context.Request.Scheme://@Context.Request.Host@(isEnglish ? "/en/guides/" : "/rehberler/")@categorySlug"
+            },
+            {
+                "@@type": "ListItem",
+                "position": 4,
+                "name": "@Model.Title"
+            }
+        ]
     }
     </script>
 }
