@@ -2,6 +2,7 @@ using AlgoritmaUzmani.Services.Interfaces;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace AlgoritmaUzmani.Services;
 
@@ -10,43 +11,11 @@ public class TranslationService : ITranslationService
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
     private readonly ILogger<TranslationService> _logger;
+    
+    // ~12000 chars per chunk to stay safely under 32768 token limit
+    private const int MaxChunkChars = 12000;
 
-    public TranslationService(
-        HttpClient httpClient,
-        IConfiguration configuration,
-        ILogger<TranslationService> logger)
-    {
-        _httpClient = httpClient;
-        _configuration = configuration;
-        _logger = logger;
-    }
-
-    public async Task<string> TranslateToEnglishAsync(string turkishText)
-    {
-        if (string.IsNullOrWhiteSpace(turkishText))
-            return string.Empty;
-
-        var apiKey = _configuration["DeepInfra:ApiKey"];
-        var baseUrl = _configuration["DeepInfra:BaseUrl"];
-        var model = _configuration["DeepInfra:Model"];
-
-        _logger.LogInformation("=== TRANSLATION START ===");
-        _logger.LogInformation("API Key: {Key}", apiKey?.Substring(0, 10) + "...");
-        _logger.LogInformation("Base URL: {Url}", baseUrl);
-        _logger.LogInformation("Model: {Model}", model);
-        _logger.LogInformation("Input length: {Len} chars", turkishText.Length);
-
-        try
-        {
-            var request = new
-            {
-                model = model,
-                messages = new[]
-                {
-                    new
-                    {
-                        role = "system",
-                        content = @"You are a professional Turkish to English translator for technical documentation.
+    private static readonly string SystemPrompt = @"You are a professional Turkish to English translator for technical documentation.
 
 ABSOLUTE RULES - NEVER BREAK THESE:
 1. Return ONLY the translated HTML - no explanations, no markdown, no code blocks
@@ -68,13 +37,160 @@ Output: <h3>Data Structures</h3><ul><li>Arrays</li><li>Linked Lists</li></ul>
 Input: <pre><code>def hello(): print('Merhaba')</code></pre>
 Output: <pre><code>def hello(): print('Merhaba')</code></pre>
 
-RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE."
-                    },
-                    new
-                    {
-                        role = "user",
-                        content = turkishText
-                    }
+RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE.";
+
+    public TranslationService(
+        HttpClient httpClient,
+        IConfiguration configuration,
+        ILogger<TranslationService> logger)
+    {
+        _httpClient = httpClient;
+        _configuration = configuration;
+        _logger = logger;
+    }
+
+    public async Task<string> TranslateToEnglishAsync(string turkishText)
+    {
+        if (string.IsNullOrWhiteSpace(turkishText))
+            return string.Empty;
+
+        _logger.LogInformation("=== TRANSLATION START === Input length: {Len} chars", turkishText.Length);
+
+        // If content is short enough, translate directly
+        if (turkishText.Length <= MaxChunkChars)
+        {
+            return await TranslateChunkAsync(turkishText);
+        }
+
+        // Split into chunks and translate each
+        var chunks = SplitHtmlIntoChunks(turkishText);
+        _logger.LogInformation("Content too large, split into {Count} chunks", chunks.Count);
+
+        var translatedChunks = new List<string>();
+        for (int i = 0; i < chunks.Count; i++)
+        {
+            _logger.LogInformation("Translating chunk {Current}/{Total} ({Len} chars)...", 
+                i + 1, chunks.Count, chunks[i].Length);
+            
+            var translated = await TranslateChunkAsync(chunks[i]);
+            translatedChunks.Add(translated);
+            
+            _logger.LogInformation("Chunk {Current}/{Total} translated successfully", i + 1, chunks.Count);
+            
+            // Small delay between chunks to avoid rate limiting
+            if (i < chunks.Count - 1)
+                await Task.Delay(500);
+        }
+
+        var result = string.Join("\n", translatedChunks);
+        _logger.LogInformation("=== ALL CHUNKS TRANSLATED === Total result: {Len} chars", result.Length);
+        return result;
+    }
+
+    /// <summary>
+    /// Splits HTML content into chunks at block-level element boundaries
+    /// </summary>
+    private List<string> SplitHtmlIntoChunks(string html)
+    {
+        // Split at block-level HTML element boundaries
+        // Match opening tags of block elements: h1-h6, p, div, ul, ol, table, pre, blockquote, section, article, hr, figure
+        var blockPattern = @"(?=<(?:h[1-6]|p|div|ul|ol|table|pre|blockquote|section|article|hr|figure)[\s>])";
+        var segments = Regex.Split(html, blockPattern, RegexOptions.IgnoreCase);
+
+        // Remove empty segments
+        segments = segments.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+
+        if (segments.Length == 0)
+            return new List<string> { html };
+
+        var chunks = new List<string>();
+        var currentChunk = new StringBuilder();
+
+        foreach (var segment in segments)
+        {
+            // If adding this segment would exceed the limit, finalize the current chunk
+            if (currentChunk.Length > 0 && currentChunk.Length + segment.Length > MaxChunkChars)
+            {
+                chunks.Add(currentChunk.ToString());
+                currentChunk.Clear();
+            }
+
+            // If a single segment is larger than the limit, we still add it as its own chunk
+            if (currentChunk.Length == 0 && segment.Length > MaxChunkChars)
+            {
+                // Try to split further by smaller elements (li, tr, etc.)
+                var subChunks = SplitLargeSegment(segment);
+                chunks.AddRange(subChunks);
+                continue;
+            }
+
+            currentChunk.Append(segment);
+        }
+
+        // Don't forget the last chunk
+        if (currentChunk.Length > 0)
+            chunks.Add(currentChunk.ToString());
+
+        return chunks;
+    }
+
+    /// <summary>
+    /// Splits a single large HTML segment into smaller pieces if possible
+    /// </summary>
+    private List<string> SplitLargeSegment(string segment)
+    {
+        var chunks = new List<string>();
+        
+        // Try splitting by smaller elements
+        var pattern = @"(?=<(?:li|tr|dd|dt)[\s>])";
+        var parts = Regex.Split(segment, pattern, RegexOptions.IgnoreCase)
+            .Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+
+        if (parts.Length <= 1)
+        {
+            // Can't split further, just hard-cut by character limit
+            for (int i = 0; i < segment.Length; i += MaxChunkChars)
+            {
+                var len = Math.Min(MaxChunkChars, segment.Length - i);
+                chunks.Add(segment.Substring(i, len));
+            }
+            return chunks;
+        }
+
+        var current = new StringBuilder();
+        foreach (var part in parts)
+        {
+            if (current.Length > 0 && current.Length + part.Length > MaxChunkChars)
+            {
+                chunks.Add(current.ToString());
+                current.Clear();
+            }
+            current.Append(part);
+        }
+        if (current.Length > 0)
+            chunks.Add(current.ToString());
+
+        return chunks;
+    }
+
+    /// <summary>
+    /// Translates a single chunk (must be under token limit)
+    /// </summary>
+    private async Task<string> TranslateChunkAsync(string text)
+    {
+        var apiKey = _configuration["DeepInfra:ApiKey"];
+        var baseUrl = _configuration["DeepInfra:BaseUrl"];
+        var model = _configuration["DeepInfra:Model"];
+
+        try
+        {
+            var request = new
+            {
+                model = model,
+                messages = new[]
+                {
+                    new { role = "system", content = SystemPrompt },
+                    new { role = "user", content = text }
                 },
                 temperature = 0.3
             };
@@ -85,12 +201,10 @@ RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE."
             _httpClient.DefaultRequestHeaders.Authorization = 
                 new AuthenticationHeaderValue("Bearer", apiKey);
 
-            _logger.LogInformation("Sending request to DeepInfra...");
             var response = await _httpClient.PostAsync(baseUrl, content);
-            
             var responseJson = await response.Content.ReadAsStringAsync();
-            _logger.LogInformation("Response Status: {Status}", response.StatusCode);
-            _logger.LogInformation("Response Body (first 500 chars): {Body}", responseJson.Length > 500 ? responseJson.Substring(0, 500) : responseJson);
+            
+            _logger.LogInformation("Chunk response status: {Status}", response.StatusCode);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -105,8 +219,6 @@ RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE."
                 .GetProperty("message")
                 .GetProperty("content")
                 .GetString() ?? string.Empty;
-
-            _logger.LogInformation("Translated text (first 200 chars): {Text}", translatedText.Length > 200 ? translatedText.Substring(0, 200) : translatedText);
 
             // Post-process: Fix any accidentally escaped HTML tags
             translatedText = translatedText
@@ -132,12 +244,11 @@ RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE."
                     translatedText = translatedText.Substring(0, translatedText.Length - 3);
             }
 
-            _logger.LogInformation("=== TRANSLATION SUCCESS ===");
             return translatedText.Trim();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "=== TRANSLATION FAILED === Input: {Text}", turkishText.Substring(0, Math.Min(100, turkishText.Length)));
+            _logger.LogError(ex, "=== CHUNK TRANSLATION FAILED === Input: {Text}", text.Substring(0, Math.Min(100, text.Length)));
             throw;
         }
     }

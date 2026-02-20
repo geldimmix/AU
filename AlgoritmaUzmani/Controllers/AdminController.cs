@@ -567,12 +567,17 @@ public class AdminController : Controller
             }
 
             // İçerik çevir
-            Log("ÇEVİRİ: İÇERİK", "pending", $"İstek gönderiliyor ({guide.ContentTr?.Length ?? 0} karakter)...");
+            var contentLen = guide.ContentTr?.Length ?? 0;
+            var willChunk = contentLen > 12000;
+            Log("ÇEVİRİ: İÇERİK", "pending", 
+                willChunk 
+                    ? $"İçerik çok büyük ({contentLen} karakter), parçalanarak çevrilecek..." 
+                    : $"İstek gönderiliyor ({contentLen} karakter)...");
             string contentEn = "";
             try
             {
                 contentEn = await _translationService.TranslateToEnglishAsync(guide.ContentTr ?? "");
-                Log("ÇEVİRİ: İÇERİK", "ok", $"Sonuç: {contentEn?.Length ?? 0} karakter - İlk 200: {contentEn?.Substring(0, Math.Min(200, contentEn?.Length ?? 0))}...");
+                Log("ÇEVİRİ: İÇERİK", "ok", $"Sonuç: {contentEn?.Length ?? 0} karakter çevrildi");
             }
             catch (Exception ex)
             {
