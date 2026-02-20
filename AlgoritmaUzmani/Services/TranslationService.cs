@@ -26,12 +26,18 @@ public class TranslationService : ITranslationService
         if (string.IsNullOrWhiteSpace(turkishText))
             return string.Empty;
 
+        var apiKey = _configuration["DeepInfra:ApiKey"];
+        var baseUrl = _configuration["DeepInfra:BaseUrl"];
+        var model = _configuration["DeepInfra:Model"];
+
+        _logger.LogInformation("=== TRANSLATION START ===");
+        _logger.LogInformation("API Key: {Key}", apiKey?.Substring(0, 10) + "...");
+        _logger.LogInformation("Base URL: {Url}", baseUrl);
+        _logger.LogInformation("Model: {Model}", model);
+        _logger.LogInformation("Input length: {Len} chars", turkishText.Length);
+
         try
         {
-            var apiKey = _configuration["DeepInfra:ApiKey"];
-            var baseUrl = _configuration["DeepInfra:BaseUrl"];
-            var model = _configuration["DeepInfra:Model"];
-
             var request = new
             {
                 model = model,
@@ -79,10 +85,19 @@ RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE."
             _httpClient.DefaultRequestHeaders.Authorization = 
                 new AuthenticationHeaderValue("Bearer", apiKey);
 
+            _logger.LogInformation("Sending request to DeepInfra...");
             var response = await _httpClient.PostAsync(baseUrl, content);
-            response.EnsureSuccessStatusCode();
-
+            
             var responseJson = await response.Content.ReadAsStringAsync();
+            _logger.LogInformation("Response Status: {Status}", response.StatusCode);
+            _logger.LogInformation("Response Body (first 500 chars): {Body}", responseJson.Length > 500 ? responseJson.Substring(0, 500) : responseJson);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("API Error! Status: {Status}, Body: {Body}", response.StatusCode, responseJson);
+                throw new Exception($"DeepInfra API error: {response.StatusCode} - {responseJson}");
+            }
+
             using var document = JsonDocument.Parse(responseJson);
             
             var translatedText = document.RootElement
@@ -90,6 +105,8 @@ RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE."
                 .GetProperty("message")
                 .GetProperty("content")
                 .GetString() ?? string.Empty;
+
+            _logger.LogInformation("Translated text (first 200 chars): {Text}", translatedText.Length > 200 ? translatedText.Substring(0, 200) : translatedText);
 
             // Post-process: Fix any accidentally escaped HTML tags
             translatedText = translatedText
@@ -115,11 +132,12 @@ RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE."
                     translatedText = translatedText.Substring(0, translatedText.Length - 3);
             }
 
+            _logger.LogInformation("=== TRANSLATION SUCCESS ===");
             return translatedText.Trim();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Translation failed for text: {Text}", turkishText.Substring(0, Math.Min(50, turkishText.Length)));
+            _logger.LogError(ex, "=== TRANSLATION FAILED === Input: {Text}", turkishText.Substring(0, Math.Min(100, turkishText.Length)));
             throw;
         }
     }
