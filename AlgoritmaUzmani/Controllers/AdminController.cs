@@ -281,9 +281,6 @@ public class AdminController : Controller
             return View(model);
         }
 
-        bool translationFailed = false;
-        string? translationError = null;
-
         try
         {
             // Handle image upload
@@ -316,29 +313,22 @@ public class AdminController : Controller
                 DisplayOrder = model.DisplayOrder,
                 IsActive = model.IsActive,
                 PublishedAt = model.IsActive ? DateTime.UtcNow : null,
-                IsTranslated = false // Başlangıçta false, çeviri başarılı olursa true yapılacak
+                IsTranslated = false // Çeviri ayrıca yapılacak
             };
 
-            // ÖNCE KAYDET - çeviri başarısız olsa bile içerik kaybolmasın
+            // SADECE KAYDET - çeviri yok, hızlı kayıt
             var created = await _guideService.CreateAsync(guide);
-            _logger.LogInformation("Guide created successfully: {Id} - {Title}", created.Id, created.TitleTr);
+            _logger.LogInformation("Guide created: {Id} - {Title}", created.Id, created.TitleTr);
 
             // Set tags
-            try
-            {
-                if (model.SelectedTagIds.Any())
-                    await _guideService.SetTagsAsync(created.Id, model.SelectedTagIds);
+            if (model.SelectedTagIds.Any())
+                await _guideService.SetTagsAsync(created.Id, model.SelectedTagIds);
 
-                if (model.SelectedSeoTagIds.Any())
-                    await _guideService.SetSeoTagsAsync(created.Id, model.SelectedSeoTagIds);
+            if (model.SelectedSeoTagIds.Any())
+                await _guideService.SetSeoTagsAsync(created.Id, model.SelectedSeoTagIds);
 
-                if (model.RelatedGuideIds.Any())
-                    await _guideService.SetRelatedGuidesAsync(created.Id, model.RelatedGuideIds);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to set tags for guide: {GuideId}", created.Id);
-            }
+            if (model.RelatedGuideIds.Any())
+                await _guideService.SetRelatedGuidesAsync(created.Id, model.RelatedGuideIds);
 
             // Save code blocks
             if (!string.IsNullOrWhiteSpace(model.CodeBlocksJson))
@@ -353,53 +343,17 @@ public class AdminController : Controller
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to save code blocks for guide: {GuideId}", created.Id);
+                    _logger.LogError(ex, "Failed to save code blocks: {GuideId}", created.Id);
                 }
             }
 
-            // SONRA ÇEVİR - opsiyonel, başarısız olursa sorun değil
-            try
-            {
-                var (titleEn, contentEn, summaryEn, metaDescriptionEn) = await _translationService.TranslateGuideAsync(
-                    model.TitleTr, model.ContentTr, model.SummaryTr, model.MetaDescriptionTr);
-                
-                // Çeviriyi güncelle
-                var guideToUpdate = await _guideService.GetByIdAsync(created.Id);
-                if (guideToUpdate != null)
-                {
-                    guideToUpdate.TitleEn = titleEn;
-                    guideToUpdate.ContentEn = contentEn;
-                    guideToUpdate.SummaryEn = summaryEn;
-                    guideToUpdate.MetaDescriptionEn = metaDescriptionEn;
-                    guideToUpdate.FeaturedImageAltEn = !string.IsNullOrEmpty(model.FeaturedImageAltTr) 
-                        ? await _translationService.TranslateToEnglishAsync(model.FeaturedImageAltTr) 
-                        : null;
-                    guideToUpdate.IsTranslated = true;
-                    await _guideService.UpdateAsync(guideToUpdate);
-                }
-            }
-            catch (Exception ex)
-            {
-                translationFailed = true;
-                translationError = ex.Message;
-                _logger.LogWarning(ex, "Translation failed for guide: {GuideId}, but guide was saved successfully", created.Id);
-            }
-
-            if (translationFailed)
-            {
-                TempData["Warning"] = $"Rehber kaydedildi ancak çeviri başarısız oldu: {translationError}. Daha sonra 'Çevir' butonuyla çevirebilirsiniz.";
-            }
-            else
-            {
-                TempData["Success"] = "Rehber başarıyla oluşturuldu ve çevrildi!";
-            }
-            
+            TempData["Success"] = "Rehber kaydedildi! İngilizce çeviri için 'Çevir' butonunu kullanın.";
             return RedirectToAction(nameof(EditGuide), new { id = created.Id });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Critical error while creating guide: {Title}", model.TitleTr);
-            ModelState.AddModelError(string.Empty, $"Rehber kaydedilemedi: {ex.Message}");
+            _logger.LogError(ex, "Guide create failed: {Title}", model.TitleTr);
+            ModelState.AddModelError(string.Empty, $"Hata: {ex.Message}");
             await PopulateGuideSelectLists(model);
             return View(model);
         }
