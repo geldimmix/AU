@@ -12,8 +12,8 @@ public class TranslationService : ITranslationService
     private readonly IConfiguration _configuration;
     private readonly ILogger<TranslationService> _logger;
     
-    // ~12000 chars per chunk to stay safely under 32768 token limit
-    private const int MaxChunkChars = 12000;
+    // Conservative limit: Turkish+HTML ≈ 3-4 tokens per char, so 4000 chars ≈ 16000 tokens max
+    private const int MaxChunkChars = 4000;
 
     private static readonly string SystemPrompt = @"You are a professional Turkish to English translator for technical documentation.
 
@@ -92,84 +92,119 @@ RETURN ONLY THE TRANSLATED HTML, NOTHING ELSE.";
     /// </summary>
     private List<string> SplitHtmlIntoChunks(string html)
     {
+        _logger.LogInformation("SplitHtmlIntoChunks called, input length: {Len}", html.Length);
+        
         // Split at block-level HTML element boundaries
-        // Match opening tags of block elements: h1-h6, p, div, ul, ol, table, pre, blockquote, section, article, hr, figure
-        var blockPattern = @"(?=<(?:h[1-6]|p|div|ul|ol|table|pre|blockquote|section|article|hr|figure)[\s>])";
-        var segments = Regex.Split(html, blockPattern, RegexOptions.IgnoreCase);
+        var blockPattern = @"(?=<(?:h[1-6]|p|div|ul|ol|table|pre|blockquote|section|article|hr|figure|li|tr)[\s>/])";
+        var segments = Regex.Split(html, blockPattern, RegexOptions.IgnoreCase)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToArray();
 
-        // Remove empty segments
-        segments = segments.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+        _logger.LogInformation("Split into {Count} HTML segments", segments.Length);
 
-        if (segments.Length == 0)
-            return new List<string> { html };
+        // If regex didn't split anything useful, force-split by closing tags or newlines
+        if (segments.Length <= 1)
+        {
+            _logger.LogWarning("HTML split produced only {Count} segment(s), trying alternative split", segments.Length);
+            // Try splitting by </p>, </div>, </li>, etc.
+            var altPattern = @"(</(?:p|div|h[1-6]|li|tr|ul|ol|table|pre|blockquote)>)";
+            var altParts = Regex.Split(html, altPattern, RegexOptions.IgnoreCase)
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToArray();
+            
+            if (altParts.Length > 1)
+            {
+                // Rejoin closing tags with their preceding content
+                var rejoined = new List<string>();
+                var temp = new StringBuilder();
+                foreach (var part in altParts)
+                {
+                    temp.Append(part);
+                    if (Regex.IsMatch(part, @"^</(?:p|div|h[1-6]|li|tr|ul|ol|table|pre|blockquote)>$", RegexOptions.IgnoreCase))
+                    {
+                        rejoined.Add(temp.ToString());
+                        temp.Clear();
+                    }
+                }
+                if (temp.Length > 0)
+                    rejoined.Add(temp.ToString());
+                
+                segments = rejoined.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+                _logger.LogInformation("Alternative split produced {Count} segments", segments.Length);
+            }
+        }
+
+        // ULTIMATE FALLBACK: if still no segments, hard-split by character count
+        if (segments.Length <= 1)
+        {
+            _logger.LogWarning("All HTML splits failed, doing hard character split");
+            return HardSplitByChars(html);
+        }
 
         var chunks = new List<string>();
         var currentChunk = new StringBuilder();
 
         foreach (var segment in segments)
         {
-            // If adding this segment would exceed the limit, finalize the current chunk
             if (currentChunk.Length > 0 && currentChunk.Length + segment.Length > MaxChunkChars)
             {
                 chunks.Add(currentChunk.ToString());
                 currentChunk.Clear();
             }
 
-            // If a single segment is larger than the limit, we still add it as its own chunk
+            // If a single segment is still too large, hard-split it
             if (currentChunk.Length == 0 && segment.Length > MaxChunkChars)
             {
-                // Try to split further by smaller elements (li, tr, etc.)
-                var subChunks = SplitLargeSegment(segment);
-                chunks.AddRange(subChunks);
+                chunks.AddRange(HardSplitByChars(segment));
                 continue;
             }
 
             currentChunk.Append(segment);
         }
 
-        // Don't forget the last chunk
         if (currentChunk.Length > 0)
             chunks.Add(currentChunk.ToString());
+
+        _logger.LogInformation("Final chunk count: {Count}, sizes: {Sizes}", 
+            chunks.Count, string.Join(", ", chunks.Select(c => c.Length)));
 
         return chunks;
     }
 
     /// <summary>
-    /// Splits a single large HTML segment into smaller pieces if possible
+    /// Hard-splits text by character limit as last resort
     /// </summary>
-    private List<string> SplitLargeSegment(string segment)
+    private List<string> HardSplitByChars(string text)
     {
         var chunks = new List<string>();
+        for (int i = 0; i < text.Length; i += MaxChunkChars)
+        {
+            var end = Math.Min(i + MaxChunkChars, text.Length);
+            
+            // Try to break at a tag boundary to avoid splitting HTML tags
+            if (end < text.Length)
+            {
+                var searchStart = Math.Max(i + (MaxChunkChars / 2), i); // don't go below half
+                var lastTagClose = text.LastIndexOf('>', end);
+                if (lastTagClose > searchStart)
+                    end = lastTagClose + 1;
+            }
+            
+            chunks.Add(text.Substring(i, end - i));
+            i = end - MaxChunkChars; // adjust for next iteration since end may have moved
+        }
         
-        // Try splitting by smaller elements
-        var pattern = @"(?=<(?:li|tr|dd|dt)[\s>])";
-        var parts = Regex.Split(segment, pattern, RegexOptions.IgnoreCase)
-            .Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
-
-        if (parts.Length <= 1)
+        // Simpler fallback if above logic fails
+        if (chunks.Count == 0 || chunks.Any(c => c.Length > MaxChunkChars * 2))
         {
-            // Can't split further, just hard-cut by character limit
-            for (int i = 0; i < segment.Length; i += MaxChunkChars)
+            chunks.Clear();
+            for (int i = 0; i < text.Length; i += MaxChunkChars)
             {
-                var len = Math.Min(MaxChunkChars, segment.Length - i);
-                chunks.Add(segment.Substring(i, len));
+                var len = Math.Min(MaxChunkChars, text.Length - i);
+                chunks.Add(text.Substring(i, len));
             }
-            return chunks;
         }
-
-        var current = new StringBuilder();
-        foreach (var part in parts)
-        {
-            if (current.Length > 0 && current.Length + part.Length > MaxChunkChars)
-            {
-                chunks.Add(current.ToString());
-                current.Clear();
-            }
-            current.Append(part);
-        }
-        if (current.Length > 0)
-            chunks.Add(current.ToString());
-
+        
         return chunks;
     }
 

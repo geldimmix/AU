@@ -568,7 +568,7 @@ public class AdminController : Controller
 
             // İçerik çevir
             var contentLen = guide.ContentTr?.Length ?? 0;
-            var willChunk = contentLen > 12000;
+            var willChunk = contentLen > 4000;
             Log("ÇEVİRİ: İÇERİK", "pending", 
                 willChunk 
                     ? $"İçerik çok büyük ({contentLen} karakter), parçalanarak çevrilecek..." 
