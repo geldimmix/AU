@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Security.Claims;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace AlgoritmaUzmani.Controllers;
 
@@ -566,23 +568,56 @@ public class AdminController : Controller
                 return Json(new { success = false, error = $"Başlık çevirisi başarısız: {ex.Message}", logs });
             }
 
-            // İçerik çevir
-            var contentLen = guide.ContentTr?.Length ?? 0;
-            var willChunk = contentLen > 4000;
-            Log("ÇEVİRİ: İÇERİK", "pending", 
-                willChunk 
-                    ? $"İçerik çok büyük ({contentLen} karakter), parçalanarak çevrilecek..." 
-                    : $"İstek gönderiliyor ({contentLen} karakter)...");
+            // İçerik çevir - PARÇALI
+            var contentTr = guide.ContentTr ?? "";
+            var contentLen = contentTr.Length;
+            const int CHUNK_LIMIT = 3000; // 3000 karakter = ~6000-10000 token, güvenli
             string contentEn = "";
-            try
+            
+            if (contentLen <= CHUNK_LIMIT)
             {
-                contentEn = await _translationService.TranslateToEnglishAsync(guide.ContentTr ?? "");
-                Log("ÇEVİRİ: İÇERİK", "ok", $"Sonuç: {contentEn?.Length ?? 0} karakter çevrildi");
+                // Tek parça, direkt çevir
+                Log("ÇEVİRİ: İÇERİK", "pending", $"İstek gönderiliyor ({contentLen} karakter)...");
+                try
+                {
+                    contentEn = await _translationService.TranslateToEnglishAsync(contentTr);
+                    Log("ÇEVİRİ: İÇERİK", "ok", $"Sonuç: {contentEn?.Length ?? 0} karakter çevrildi");
+                }
+                catch (Exception ex)
+                {
+                    Log("ÇEVİRİ: İÇERİK", "error", $"HATA: {ex.Message}");
+                    return Json(new { success = false, error = $"İçerik çevirisi başarısız: {ex.Message}", logs });
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Log("ÇEVİRİ: İÇERİK", "error", $"HATA: {ex.Message}");
-                return Json(new { success = false, error = $"İçerik çevirisi başarısız: {ex.Message}", logs });
+                // PARÇALA ve çevir
+                var chunks = SplitContentIntoChunks(contentTr, CHUNK_LIMIT);
+                Log("ÇEVİRİ: İÇERİK", "info", $"İçerik çok büyük ({contentLen} karakter), {chunks.Count} parçaya bölündü");
+                
+                var translatedParts = new List<string>();
+                for (int i = 0; i < chunks.Count; i++)
+                {
+                    Log($"ÇEVİRİ: PARÇA {i+1}/{chunks.Count}", "pending", $"Gönderiliyor ({chunks[i].Length} karakter)...");
+                    try
+                    {
+                        var translated = await _translationService.TranslateToEnglishAsync(chunks[i]);
+                        translatedParts.Add(translated);
+                        Log($"ÇEVİRİ: PARÇA {i+1}/{chunks.Count}", "ok", $"Çevrildi ({translated?.Length ?? 0} karakter)");
+                        
+                        // Rate limit koruması
+                        if (i < chunks.Count - 1)
+                            await Task.Delay(300);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log($"ÇEVİRİ: PARÇA {i+1}/{chunks.Count}", "error", $"HATA: {ex.Message}");
+                        return Json(new { success = false, error = $"İçerik parça {i+1} çevirisi başarısız: {ex.Message}", logs });
+                    }
+                }
+                
+                contentEn = string.Join("\n", translatedParts);
+                Log("ÇEVİRİ: İÇERİK", "ok", $"Tüm parçalar birleştirildi: {contentEn.Length} karakter");
             }
 
             // Özet çevir
@@ -649,6 +684,91 @@ public class AdminController : Controller
     }
 
     private readonly IConfiguration _configuration;
+
+    /// <summary>
+    /// HTML içeriği belirtilen karakter limitine göre parçalar
+    /// </summary>
+    private List<string> SplitContentIntoChunks(string html, int maxChars)
+    {
+        var chunks = new List<string>();
+        
+        if (string.IsNullOrEmpty(html) || html.Length <= maxChars)
+        {
+            chunks.Add(html ?? "");
+            return chunks;
+        }
+
+        // Block-level HTML tag'lerinden böl
+        var blockPattern = @"(?=<(?:h[1-6]|p|div|ul|ol|table|pre|blockquote|section|article|hr|figure|li|tr)[\s>/])";
+        var segments = Regex.Split(html, blockPattern, RegexOptions.IgnoreCase)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToArray();
+
+        // Regex işe yaramadıysa, kapanış tag'lerinden böl
+        if (segments.Length <= 1)
+        {
+            var closingPattern = @"(</(?:p|div|h[1-6]|li|tr|ul|ol|table|pre|blockquote)>)";
+            var parts = Regex.Split(html, closingPattern, RegexOptions.IgnoreCase)
+                .Where(s => !string.IsNullOrEmpty(s))
+                .ToArray();
+            
+            if (parts.Length > 1)
+            {
+                var rejoined = new List<string>();
+                var temp = new StringBuilder();
+                foreach (var part in parts)
+                {
+                    temp.Append(part);
+                    if (Regex.IsMatch(part, @"^</", RegexOptions.IgnoreCase))
+                    {
+                        rejoined.Add(temp.ToString());
+                        temp.Clear();
+                    }
+                }
+                if (temp.Length > 0) rejoined.Add(temp.ToString());
+                segments = rejoined.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+            }
+        }
+
+        // Hâlâ bölünemediyse, hard character split
+        if (segments.Length <= 1)
+        {
+            for (int i = 0; i < html.Length; i += maxChars)
+            {
+                var len = Math.Min(maxChars, html.Length - i);
+                chunks.Add(html.Substring(i, len));
+            }
+            return chunks;
+        }
+
+        // Segment'leri maxChars'a göre grupla
+        var currentChunk = new StringBuilder();
+        foreach (var segment in segments)
+        {
+            if (currentChunk.Length > 0 && currentChunk.Length + segment.Length > maxChars)
+            {
+                chunks.Add(currentChunk.ToString());
+                currentChunk.Clear();
+            }
+
+            // Tek segment bile çok büyükse, hard-split
+            if (currentChunk.Length == 0 && segment.Length > maxChars)
+            {
+                for (int i = 0; i < segment.Length; i += maxChars)
+                {
+                    var len = Math.Min(maxChars, segment.Length - i);
+                    chunks.Add(segment.Substring(i, len));
+                }
+                continue;
+            }
+
+            currentChunk.Append(segment);
+        }
+        if (currentChunk.Length > 0)
+            chunks.Add(currentChunk.ToString());
+
+        return chunks;
+    }
 
     #endregion
 
