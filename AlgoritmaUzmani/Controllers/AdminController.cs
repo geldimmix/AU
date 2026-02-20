@@ -305,7 +305,7 @@ public class AdminController : Controller
                 TitleTr = model.TitleTr,
                 SummaryTr = model.SummaryTr,
                 ContentTr = model.ContentTr,
-                MetaDescriptionTr = model.MetaDescriptionTr,
+                MetaDescriptionTr = model.MetaDescriptionTr?.Length > 160 ? model.MetaDescriptionTr.Substring(0, 160) : model.MetaDescriptionTr,
                 SeoKeywordsTr = model.SeoKeywordsTr,
                 FeaturedImage = model.FeaturedImage,
                 FeaturedImageAltTr = model.FeaturedImageAltTr,
@@ -313,10 +313,10 @@ public class AdminController : Controller
                 DisplayOrder = model.DisplayOrder,
                 IsActive = model.IsActive,
                 PublishedAt = model.IsActive ? DateTime.UtcNow : null,
-                IsTranslated = false // Çeviri ayrıca yapılacak
+                IsTranslated = false
             };
 
-            // SADECE KAYDET - çeviri yok, hızlı kayıt
+            // ÖNCE KAYDET
             var created = await _guideService.CreateAsync(guide);
             _logger.LogInformation("Guide created: {Id} - {Title}", created.Id, created.TitleTr);
 
@@ -347,7 +347,44 @@ public class AdminController : Controller
                 }
             }
 
-            TempData["Success"] = "Rehber kaydedildi! İngilizce çeviri için 'Çevir' butonunu kullanın.";
+            // SONRA ÇEVİR (30 saniye timeout ile)
+            bool translationSuccess = false;
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                
+                var translateTask = _translationService.TranslateGuideAsync(
+                    model.TitleTr, model.ContentTr, model.SummaryTr, model.MetaDescriptionTr);
+                
+                var completedTask = await Task.WhenAny(translateTask, Task.Delay(30000, cts.Token));
+                
+                if (completedTask == translateTask && translateTask.IsCompletedSuccessfully)
+                {
+                    var (titleEn, contentEn, summaryEn, metaDescriptionEn) = await translateTask;
+                    
+                    var guideToUpdate = await _guideService.GetByIdAsync(created.Id);
+                    if (guideToUpdate != null)
+                    {
+                        guideToUpdate.TitleEn = titleEn;
+                        guideToUpdate.ContentEn = contentEn;
+                        guideToUpdate.SummaryEn = summaryEn;
+                        guideToUpdate.MetaDescriptionEn = metaDescriptionEn?.Length > 160 ? metaDescriptionEn.Substring(0, 160) : metaDescriptionEn;
+                        guideToUpdate.IsTranslated = true;
+                        await _guideService.UpdateAsync(guideToUpdate);
+                        translationSuccess = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Translation failed/timeout for guide: {GuideId}", created.Id);
+            }
+
+            if (translationSuccess)
+                TempData["Success"] = "Rehber başarıyla oluşturuldu ve çevrildi!";
+            else
+                TempData["Warning"] = "Rehber kaydedildi ancak çeviri zaman aşımına uğradı. 'Çevir' butonuyla tekrar deneyebilirsiniz.";
+            
             return RedirectToAction(nameof(EditGuide), new { id = created.Id });
         }
         catch (Exception ex)
