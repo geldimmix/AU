@@ -139,9 +139,9 @@
                     <div style="display: flex; gap: 0.5rem;">
                         @if (!Model.IsTranslated)
                         {
-                            <form asp-action="TranslateGuide" asp-route-id="@Model.Id" method="post" style="display: inline;">
+                            <form asp-action="TranslateGuide" asp-route-id="@Model.Id" method="post" style="display: inline;" id="translateForm">
                                 @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('İçerik DeepInfra API ile İngilizce\'ye çevrilecek. Devam edilsin mi?');">
+                                <button type="submit" class="btn btn-success btn-sm" id="translateBtn">
                                     <i class="fas fa-language"></i>
                                     Çevir (TR → EN)
                                 </button>
@@ -1003,6 +1003,27 @@
             return e.returnValue;
         }
     });
+
+    // Çevir butonu - beforeunload bypass ve loading göster
+    const translateForm = document.getElementById('translateForm');
+    if (translateForm) {
+        translateForm.addEventListener('submit', function(e) {
+            if (!confirm('İçerik DeepInfra API ile İngilizce\'ye çevrilecek. Bu işlem 1-2 dakika sürebilir. Devam edilsin mi?')) {
+                e.preventDefault();
+                return false;
+            }
+            
+            // beforeunload'ı kapat
+            window.onbeforeunload = null;
+            
+            // Loading göster
+            const btn = document.getElementById('translateBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Çevriliyor... Bekleyin';
+            
+            return true;
+        });
+    }
 
     // =============================================
     // SEO SUGGESTIONS
