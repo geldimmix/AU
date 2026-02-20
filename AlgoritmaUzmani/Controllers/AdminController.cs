@@ -686,7 +686,7 @@ public class AdminController : Controller
     private readonly IConfiguration _configuration;
 
     /// <summary>
-    /// HTML içeriği belirtilen karakter limitine göre parçalar
+    /// HTML içeriği kapanış tag'lerinden böler, olmazsa düz karakter böler
     /// </summary>
     private List<string> SplitContentIntoChunks(string html, int maxChars)
     {
@@ -698,75 +698,59 @@ public class AdminController : Controller
             return chunks;
         }
 
-        // Block-level HTML tag'lerinden böl
-        var blockPattern = @"(?=<(?:h[1-6]|p|div|ul|ol|table|pre|blockquote|section|article|hr|figure|li|tr)[\s>/])";
-        var segments = Regex.Split(html, blockPattern, RegexOptions.IgnoreCase)
-            .Where(s => !string.IsNullOrWhiteSpace(s))
-            .ToArray();
-
-        // Regex işe yaramadıysa, kapanış tag'lerinden böl
-        if (segments.Length <= 1)
+        // EN BASİT YOL: Kapanış tag'lerini bul, oralardan böl
+        var closingTagPositions = new List<int>();
+        var closingTagPattern = new Regex(@"</(?:p|div|h[1-6]|li|tr|ul|ol|table|pre|blockquote|section|article|figure)>", RegexOptions.IgnoreCase);
+        foreach (Match m in closingTagPattern.Matches(html))
         {
-            var closingPattern = @"(</(?:p|div|h[1-6]|li|tr|ul|ol|table|pre|blockquote)>)";
-            var parts = Regex.Split(html, closingPattern, RegexOptions.IgnoreCase)
-                .Where(s => !string.IsNullOrEmpty(s))
-                .ToArray();
+            closingTagPositions.Add(m.Index + m.Length);
+        }
+
+        if (closingTagPositions.Count > 0)
+        {
+            int start = 0;
+            int lastCut = 0;
             
-            if (parts.Length > 1)
+            foreach (var pos in closingTagPositions)
             {
-                var rejoined = new List<string>();
-                var temp = new StringBuilder();
-                foreach (var part in parts)
+                if (pos - start >= maxChars && lastCut > start)
                 {
-                    temp.Append(part);
-                    if (Regex.IsMatch(part, @"^</", RegexOptions.IgnoreCase))
+                    // Önceki kesim noktasından kes
+                    chunks.Add(html.Substring(start, lastCut - start));
+                    start = lastCut;
+                }
+                lastCut = pos;
+            }
+            
+            // Kalan kısmı ekle
+            if (start < html.Length)
+            {
+                var remaining = html.Substring(start);
+                if (remaining.Length <= maxChars)
+                {
+                    chunks.Add(remaining);
+                }
+                else
+                {
+                    // Kalan hâlâ büyükse, düz kes
+                    for (int i = 0; i < remaining.Length; i += maxChars)
                     {
-                        rejoined.Add(temp.ToString());
-                        temp.Clear();
+                        chunks.Add(remaining.Substring(i, Math.Min(maxChars, remaining.Length - i)));
                     }
                 }
-                if (temp.Length > 0) rejoined.Add(temp.ToString());
-                segments = rejoined.Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
             }
+            
+            if (chunks.Count > 1)
+                return chunks;
         }
 
-        // Hâlâ bölünemediyse, hard character split
-        if (segments.Length <= 1)
+        // FALLBACK: Düz karakter bölme - kesin çalışır
+        chunks.Clear();
+        for (int i = 0; i < html.Length; i += maxChars)
         {
-            for (int i = 0; i < html.Length; i += maxChars)
-            {
-                var len = Math.Min(maxChars, html.Length - i);
-                chunks.Add(html.Substring(i, len));
-            }
-            return chunks;
+            var len = Math.Min(maxChars, html.Length - i);
+            chunks.Add(html.Substring(i, len));
         }
-
-        // Segment'leri maxChars'a göre grupla
-        var currentChunk = new StringBuilder();
-        foreach (var segment in segments)
-        {
-            if (currentChunk.Length > 0 && currentChunk.Length + segment.Length > maxChars)
-            {
-                chunks.Add(currentChunk.ToString());
-                currentChunk.Clear();
-            }
-
-            // Tek segment bile çok büyükse, hard-split
-            if (currentChunk.Length == 0 && segment.Length > maxChars)
-            {
-                for (int i = 0; i < segment.Length; i += maxChars)
-                {
-                    var len = Math.Min(maxChars, segment.Length - i);
-                    chunks.Add(segment.Substring(i, len));
-                }
-                continue;
-            }
-
-            currentChunk.Append(segment);
-        }
-        if (currentChunk.Length > 0)
-            chunks.Add(currentChunk.ToString());
-
         return chunks;
     }
 
