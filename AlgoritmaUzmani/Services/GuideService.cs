@@ -187,27 +187,7 @@ public class GuideService : IGuideService
         guide.SlugTr = SlugHelper.GenerateSlug(guide.TitleTr);
         guide.CreatedAt = DateTime.UtcNow;
 
-        // Auto-translate to English if not provided
-        if (string.IsNullOrEmpty(guide.TitleEn))
-        {
-            try
-            {
-                guide.TitleEn = await _translationService.TranslateToEnglishAsync(guide.TitleTr);
-                if (!string.IsNullOrEmpty(guide.SummaryTr))
-                    guide.SummaryEn = await _translationService.TranslateToEnglishAsync(guide.SummaryTr);
-                if (!string.IsNullOrEmpty(guide.ContentTr))
-                    guide.ContentEn = await _translationService.TranslateToEnglishAsync(guide.ContentTr);
-                if (!string.IsNullOrEmpty(guide.MetaDescriptionTr))
-                    guide.MetaDescriptionEn = await _translationService.TranslateToEnglishAsync(guide.MetaDescriptionTr);
-                guide.IsTranslated = true;
-                _logger.LogInformation("Guide translated: {TitleTr} -> {TitleEn}", guide.TitleTr, guide.TitleEn);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to translate guide: {TitleTr}", guide.TitleTr);
-            }
-        }
-
+        // Slug'ları oluştur (çeviri AdminController'da yapılıyor)
         if (!string.IsNullOrEmpty(guide.TitleEn))
             guide.SlugEn = SlugHelper.GenerateSlug(guide.TitleEn);
 
@@ -215,6 +195,9 @@ public class GuideService : IGuideService
         await _context.SaveChangesAsync();
 
         await _cache.RemoveByPrefixAsync(CachePrefix);
+        await _cache.RemoveByPrefixAsync("category_");
+        
+        _logger.LogInformation("Guide created: {Id} - {TitleTr}", guide.Id, guide.TitleTr);
         return guide;
     }
 
@@ -224,8 +207,7 @@ public class GuideService : IGuideService
         if (existing == null)
             throw new InvalidOperationException("Guide not found");
 
-        bool needsTranslation = existing.TitleTr != guide.TitleTr || existing.ContentTr != guide.ContentTr;
-
+        // Türkçe alanları güncelle
         existing.CategoryId = guide.CategoryId;
         existing.TitleTr = guide.TitleTr;
         existing.SlugTr = SlugHelper.GenerateSlug(guide.TitleTr);
@@ -240,40 +222,16 @@ public class GuideService : IGuideService
         existing.IsActive = guide.IsActive;
         existing.UpdatedAt = DateTime.UtcNow;
 
-        // Auto-translate if Turkish content changed
-        if (needsTranslation && string.IsNullOrEmpty(guide.TitleEn))
-        {
-            try
-            {
-                existing.TitleEn = await _translationService.TranslateToEnglishAsync(guide.TitleTr);
-                if (!string.IsNullOrEmpty(guide.SummaryTr))
-                    existing.SummaryEn = await _translationService.TranslateToEnglishAsync(guide.SummaryTr);
-                if (!string.IsNullOrEmpty(guide.ContentTr))
-                    existing.ContentEn = await _translationService.TranslateToEnglishAsync(guide.ContentTr);
-                if (!string.IsNullOrEmpty(guide.MetaDescriptionTr))
-                    existing.MetaDescriptionEn = await _translationService.TranslateToEnglishAsync(guide.MetaDescriptionTr);
-                existing.IsTranslated = true;
-                _logger.LogInformation("Guide updated and translated: {TitleTr} -> {TitleEn}", guide.TitleTr, existing.TitleEn);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to translate guide: {TitleTr}", guide.TitleTr);
-                existing.TitleEn = guide.TitleEn;
-                existing.SummaryEn = guide.SummaryEn;
-                existing.ContentEn = guide.ContentEn;
-                existing.MetaDescriptionEn = guide.MetaDescriptionEn;
-            }
-        }
-        else
-        {
-            existing.TitleEn = guide.TitleEn;
-            existing.SummaryEn = guide.SummaryEn;
-            existing.ContentEn = guide.ContentEn;
-            existing.MetaDescriptionEn = guide.MetaDescriptionEn;
-            existing.SeoKeywordsEn = guide.SeoKeywordsEn;
-            existing.FeaturedImageAltEn = guide.FeaturedImageAltEn;
-        }
+        // İngilizce alanları güncelle (çeviri AdminController'da yapılıyor)
+        existing.TitleEn = guide.TitleEn;
+        existing.SummaryEn = guide.SummaryEn;
+        existing.ContentEn = guide.ContentEn;
+        existing.MetaDescriptionEn = guide.MetaDescriptionEn;
+        existing.SeoKeywordsEn = guide.SeoKeywordsEn;
+        existing.FeaturedImageAltEn = guide.FeaturedImageAltEn;
+        existing.IsTranslated = guide.IsTranslated;
 
+        // İngilizce slug oluştur
         existing.SlugEn = !string.IsNullOrEmpty(existing.TitleEn)
             ? SlugHelper.GenerateSlug(existing.TitleEn)
             : null;
@@ -281,6 +239,9 @@ public class GuideService : IGuideService
         await _context.SaveChangesAsync();
 
         await _cache.RemoveByPrefixAsync(CachePrefix);
+        await _cache.RemoveByPrefixAsync("category_");
+        
+        _logger.LogInformation("Guide updated: {Id} - {TitleTr}", existing.Id, existing.TitleTr);
         return existing;
     }
 

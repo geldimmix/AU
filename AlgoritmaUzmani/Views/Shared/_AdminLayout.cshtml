@@ -802,6 +802,13 @@
                     @TempData["Success"]
                 </div>
             }
+            @if (TempData["Warning"] != null)
+            {
+                <div class="alert alert-warning" style="background: #fef3c7; border-color: #f59e0b; color: #92400e;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    @TempData["Warning"]
+                </div>
+            }
             @if (TempData["Error"] != null)
             {
                 <div class="alert alert-danger">
