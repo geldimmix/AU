@@ -568,57 +568,38 @@ public class AdminController : Controller
                 return Json(new { success = false, error = $"Başlık çevirisi başarısız: {ex.Message}", logs });
             }
 
-            // İçerik çevir - PARÇALI
+            // === V1.0.12 CHUNK SYSTEM ===
             var contentTr = guide.ContentTr ?? "";
             var contentLen = contentTr.Length;
-            const int CHUNK_LIMIT = 3000; // 3000 karakter = ~6000-10000 token, güvenli
+            const int CHUNK_LIMIT = 3000;
             string contentEn = "";
             
-            if (contentLen <= CHUNK_LIMIT)
+            // HER ZAMAN parçala - küçük olsa bile
+            var chunks = SplitContentIntoChunks(contentTr, CHUNK_LIMIT);
+            Log("ÇEVİRİ: İÇERİK [v1.0.12]", "info", $"Toplam: {contentLen} karakter → {chunks.Count} parça (limit: {CHUNK_LIMIT})");
+            
+            var translatedParts = new List<string>();
+            for (int i = 0; i < chunks.Count; i++)
             {
-                // Tek parça, direkt çevir
-                Log("ÇEVİRİ: İÇERİK", "pending", $"İstek gönderiliyor ({contentLen} karakter)...");
+                Log($"PARÇA {i+1}/{chunks.Count}", "pending", $"Gönderiliyor ({chunks[i].Length} karakter)...");
                 try
                 {
-                    contentEn = await _translationService.TranslateToEnglishAsync(contentTr);
-                    Log("ÇEVİRİ: İÇERİK", "ok", $"Sonuç: {contentEn?.Length ?? 0} karakter çevrildi");
+                    var translated = await _translationService.TranslateToEnglishAsync(chunks[i]);
+                    translatedParts.Add(translated);
+                    Log($"PARÇA {i+1}/{chunks.Count}", "ok", $"Çevrildi ({translated?.Length ?? 0} karakter)");
+                    
+                    if (i < chunks.Count - 1)
+                        await Task.Delay(300);
                 }
                 catch (Exception ex)
                 {
-                    Log("ÇEVİRİ: İÇERİK", "error", $"HATA: {ex.Message}");
-                    return Json(new { success = false, error = $"İçerik çevirisi başarısız: {ex.Message}", logs });
+                    Log($"PARÇA {i+1}/{chunks.Count}", "error", $"HATA: {ex.Message}");
+                    return Json(new { success = false, error = $"İçerik parça {i+1}/{chunks.Count} çevirisi başarısız: {ex.Message}", logs });
                 }
             }
-            else
-            {
-                // PARÇALA ve çevir
-                var chunks = SplitContentIntoChunks(contentTr, CHUNK_LIMIT);
-                Log("ÇEVİRİ: İÇERİK", "info", $"İçerik çok büyük ({contentLen} karakter), {chunks.Count} parçaya bölündü");
-                
-                var translatedParts = new List<string>();
-                for (int i = 0; i < chunks.Count; i++)
-                {
-                    Log($"ÇEVİRİ: PARÇA {i+1}/{chunks.Count}", "pending", $"Gönderiliyor ({chunks[i].Length} karakter)...");
-                    try
-                    {
-                        var translated = await _translationService.TranslateToEnglishAsync(chunks[i]);
-                        translatedParts.Add(translated);
-                        Log($"ÇEVİRİ: PARÇA {i+1}/{chunks.Count}", "ok", $"Çevrildi ({translated?.Length ?? 0} karakter)");
-                        
-                        // Rate limit koruması
-                        if (i < chunks.Count - 1)
-                            await Task.Delay(300);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log($"ÇEVİRİ: PARÇA {i+1}/{chunks.Count}", "error", $"HATA: {ex.Message}");
-                        return Json(new { success = false, error = $"İçerik parça {i+1} çevirisi başarısız: {ex.Message}", logs });
-                    }
-                }
-                
-                contentEn = string.Join("\n", translatedParts);
-                Log("ÇEVİRİ: İÇERİK", "ok", $"Tüm parçalar birleştirildi: {contentEn.Length} karakter");
-            }
+            
+            contentEn = string.Join("\n", translatedParts);
+            Log("ÇEVİRİ: İÇERİK", "ok", $"Tüm {chunks.Count} parça birleştirildi: {contentEn.Length} karakter");
 
             // Özet çevir
             string summaryEn = null;

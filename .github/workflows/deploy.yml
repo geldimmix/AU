@@ -30,6 +30,14 @@ jobs:
     - name: Publish
       run: dotnet publish AlgoritmaUzmani/AlgoritmaUzmani.csproj --configuration Release --no-build --output ./publish
 
+    - name: Verify published DLL contains latest code
+      run: |
+        echo "=== Published files ==="
+        ls -la ./publish/AlgoritmaUzmani.dll
+        echo "=== Checking for chunk marker ==="
+        strings ./publish/AlgoritmaUzmani.dll | grep -c "V1.0.12 CHUNK" || echo "MARKER NOT FOUND!"
+        strings ./publish/AlgoritmaUzmani.dll | grep "V1.0.12 CHUNK" || echo "WARNING: DLL does not contain v1.0.12 chunk code!"
+
     - name: Setup SSH
       run: |
         mkdir -p ~/.ssh
